@@ -40,6 +40,7 @@ static const Row ROWS[] = {
   { "Buzzer pins",             "Hangjelző lábai",                 "Summer-Pins" },
   { "Buzzer: OFF",             "Hangjelző: KI",                   "Summer: AUS" },
   { "Buzzer: ON",              "Hangjelző: BE",                   "Summer: EIN" },
+  { "Brightness",              "Fényerő",                         "Helligkeit"},
 
   { "Calibrate",               "Kalibrálás",                      "Kalibrieren" },
   { "Can't access GPS",        "A GPS nem érhető el",             "Kein Zugriff auf GPS" },
@@ -77,6 +78,8 @@ static const Row ROWS[] = {
   { "Home",                    "Főoldal",                         "Start" },
   { "Humidity",                "Páratartalom",                    "Luftfeuchte" },
 
+  {"I2C SDA",                  "I2C SDA",                         "I2C SDA"},
+  {"I2C SCL",                  "I2C SCL",                         "I2C SCL"},
   { "I2C sensor",              "I2C érzékelő",                    "I2C-Sensor" },
   { "Input pin",               "Bemeneti láb",                    "Eingangspin" },
   { "Input pins",              "Bemeneti lábak",                  "Eingangspins" },
