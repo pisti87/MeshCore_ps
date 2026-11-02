@@ -10,6 +10,7 @@ static const char* mainLabel(SettingsItem i) {
   switch (i) {
     case SettingsItem::LANGUAGE: return TR("Language");
     case SettingsItem::SCREEN_TIMEOUT: return TR("Screen timeout");
+    case SettingsItem::BRIGHTNESS:     return TR("Brightness");
     case SettingsItem::KEEP_USB:       return TR("Keep on USB");
     case SettingsItem::MSG_WAKE:       return TR("Wake on message");
     case SettingsItem::BLUETOOTH:      return TR("Bluetooth");
@@ -39,8 +40,6 @@ static const char* pinLabel(HwPin p) {
   switch (p) {
     case HwPin::Buzzer: return TR("Buzzer");
     case HwPin::Vibra:  return TR("Vibra");
-    case HwPin::GpsRx:  return TR("GPS RX");
-    case HwPin::GpsTx:  return TR("GPS TX");
     case HwPin::I2cSda: return TR("I2C SDA");
     case HwPin::I2cScl: return TR("I2C SCL");
     default:            return "";
@@ -63,8 +62,15 @@ void SettingsScreen::resetSelection() {
 
 void SettingsScreen::rebuildPins() {
   _vis_count = 0;
+
   for (uint8_t i = 0; i < (uint8_t)HwPin::COUNT; i++) {
     HwPin p = (HwPin)i;
+
+    // A GPS pinek fixek, nem módosíthatók.
+    if (p == HwPin::GpsRx || p == HwPin::GpsTx) {
+      continue;
+    }
+
     if (hw_config.sensorEnabled(HwConfig::sensorOfPin(p))) {
       _vis_pins[_vis_count++] = p;
     }
