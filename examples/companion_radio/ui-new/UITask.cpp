@@ -1,4 +1,7 @@
 #include "UITask.h"
+#include "I18n.h"
+#include "SettingsScreen.h"
+#include "SpectrumScreen.h"
 #include <helpers/TxtDataHelpers.h>
 #include "../MyMesh.h"
 #include "target.h"
@@ -26,12 +29,16 @@
 #endif
 
 #if UI_HAS_JOYSTICK || UI_HAS_ROTARY_INPUT
-  #define PRESS_LABEL "press Enter"
+  #define UI_PRESS_TEXT(action) TR(action " press Enter")
 #else
-  #define PRESS_LABEL "long press"
+  #define UI_PRESS_TEXT(action) TR(action " long press")
 #endif
 
 #include "icons.h"
+static float readSpectrumRSSI(void* context) {
+  (void)context;
+  return radio_driver.getCurrentRSSI();
+}
 
 class SplashScreen : public UIScreen {
   UITask* _task;
@@ -90,6 +97,7 @@ class HomeScreen : public UIScreen {
   enum HomePage {
     FIRST,
     RECENT,
+    SPECTRUM,
     RADIO,
     BLUETOOTH,
     ADVERT,
@@ -102,6 +110,7 @@ class HomeScreen : public UIScreen {
 #if UI_DISCOVER_SCREEN
     DISCOVERY,
 #endif
+	SETTINGS,
 #ifndef UI_NO_HIBERNATE
     SHUTDOWN,
 #endif
@@ -284,7 +293,7 @@ public:
       #ifdef ENABLE_WIFI_INTERFACE
       // smaller unread message ui for wifi variants
       display.setTextSize(1);
-      sprintf(tmp, "Unread Msg: %d", _task->getMsgCount());
+      sprintf(tmp, TR("Unread Msg: %d"), _task->getMsgCount());
       display.drawTextCentered(display.width() / 2, 22, tmp);
       #else
       // larger unread message ui for non wifi variants
@@ -313,9 +322,9 @@ public:
         display.setColor(UIColor::warning_txt);
         display.setTextSize(1);
         #ifdef UI_SHOW_CLOCK
-        display.drawTextCentered(display.width() / 2, 110, "< Connected >");
+        display.drawTextCentered(display.width() / 2, 110, TR("< Connected >"));
         #else
-        display.drawTextCentered(display.width() / 2, 43, "< Connected >");
+        display.drawTextCentered(display.width() / 2, 43, TR("< Connected >"));
         #endif
       } else if (the_mesh.getBLEPin() != 0) { // BT pin
         display.setColor(UIColor::warning_txt);
@@ -384,7 +393,7 @@ public:
       display.setColor(UIColor::corp_blue);
       display.drawXbm((display.width() - 32) / 2, 18, advert_icon, 32, 32);
       display.setColor(UIColor::secondary_txt);
-      display.drawTextCentered(display.width() / 2, 64 - 11, "advert: " PRESS_LABEL);
+      display.drawTextCentered(display.width() / 2, 64 - 11, UI_PRESS_TEXT("advert:"));
 #if ENV_INCLUDE_GPS == 1
     } else if (_page == HomePage::GPS) {
       LocationProvider* nmea = sensors.getLocationProvider();
@@ -394,39 +403,39 @@ public:
 #ifdef PIN_GPS_SWITCH
       bool hw_gps_state = digitalRead(PIN_GPS_SWITCH);
       if (gps_state != hw_gps_state) {
-        strcpy(buf, gps_state ? "gps off(hw)" : "gps off(sw)");
+        strcpy(buf, gps_state ? TR("GPS off (hardware)") : TR("GPS off (software)"));
       } else {
-        strcpy(buf, gps_state ? "gps on" : "gps off");
+        strcpy(buf, gps_state ? TR("GPS on") : TR("GPS off"));
       }
 #else
-      strcpy(buf, gps_state ? "gps on" : "gps off");
+      strcpy(buf, gps_state ? TR("GPS on") : TR("GPS off"));
 #endif
       display.setColor(UIColor::primary_txt);
       display.drawTextLeftAlign(0, y, buf);
       if (nmea == NULL) {
         y = y + 12;
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, "Can't access GPS");
+        display.drawTextLeftAlign(0, y, TR("Can't access GPS"));
       } else {
         display.setColor(UIColor::primary_txt);
-        strcpy(buf, nmea->isValid()?"fix":"no fix");
+        strcpy(buf, nmea->isValid() ? TR("GPS fix") : TR("No GPS fix"));
         display.drawTextRightAlign(display.width()-1, y, buf);
         y = y + 12;
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, "sat");
+        display.drawTextLeftAlign(0, y, TR("Satellites"));
         display.setColor(UIColor::primary_txt);
         sprintf(buf, "%d", nmea->satellitesCount());
         display.drawTextRightAlign(display.width()-1, y, buf);
         y = y + 12;
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, "pos");
+        display.drawTextLeftAlign(0, y, TR("Position"));
         display.setColor(UIColor::primary_txt);
         sprintf(buf, "%.4f %.4f",
           nmea->getLatitude()/1000000., nmea->getLongitude()/1000000.);
         display.drawTextRightAlign(display.width()-1, y, buf);
         y = y + 12;
         display.setColor(UIColor::secondary_txt);
-        display.drawTextLeftAlign(0, y, "alt");
+        display.drawTextLeftAlign(0, y, TR("Altitude"));
         display.setColor(UIColor::primary_txt);
         sprintf(buf, "%.2f", nmea->getAltitude()/1000.);
         display.drawTextRightAlign(display.width()-1, y, buf);
@@ -460,39 +469,39 @@ public:
           case LPP_GPS: // GPS
             float lat, lon, alt;
             r.readGPS(lat, lon, alt);
-            strcpy(name, "gps"); sprintf(buf, "%.4f %.4f", lat, lon);
+            strcpy(name, TR("GPS")); sprintf(buf, "%.4f %.4f", lat, lon);
             break;
           case LPP_VOLTAGE:
             r.readVoltage(v);
-            strcpy(name, "voltage"); sprintf(buf, "%6.2f", v);
+            strcpy(name, TR("Voltage")); sprintf(buf, "%6.2f", v);
             break;
           case LPP_CURRENT:
             r.readCurrent(v);
-            strcpy(name, "current"); sprintf(buf, "%.3f", v);
+            strcpy(name, TR("Current")); sprintf(buf, "%.3f", v);
             break;
           case LPP_TEMPERATURE:
             r.readTemperature(v);
-            strcpy(name, "temperature"); sprintf(buf, "%.2f", v);
+            strcpy(name, TR("Temperature")); sprintf(buf, "%.2f", v);
             break;
           case LPP_RELATIVE_HUMIDITY:
             r.readRelativeHumidity(v);
-            strcpy(name, "humidity"); sprintf(buf, "%.2f", v);
+            strcpy(name, TR("Humidity")); sprintf(buf, "%.2f", v);
             break;
           case LPP_BAROMETRIC_PRESSURE:
             r.readPressure(v);
-            strcpy(name, "pressure"); sprintf(buf, "%.2f", v);
+            strcpy(name, TR("Pressure")); sprintf(buf, "%.2f", v);
             break;
           case LPP_ALTITUDE:
             r.readAltitude(v);
-            strcpy(name, "altitude"); sprintf(buf, "%.0f", v);
+            strcpy(name, TR("Altitude")); sprintf(buf, "%.0f", v);
             break;
           case LPP_POWER:
             r.readPower(v);
-            strcpy(name, "power"); sprintf(buf, "%6.2f", v);
+            strcpy(name, TR("Power")); sprintf(buf, "%6.2f", v);
             break;
           default:
             r.skipData(type);
-            strcpy(name, "unk"); sprintf(buf, "");
+            strcpy(name, TR("Unknown")); sprintf(buf, "");
         }
         display.setCursor(0, y);
         display.setColor(UIColor::secondary_txt);
@@ -538,7 +547,7 @@ public:
         return 1000; // more frequent updates just after req
       } else if (count < DISCOVERED_NODES_TABLE_SIZE -1) { // show only 5 sec after last disc
         y = 10 + 11 * DISCOVERED_NODES_TABLE_SIZE;
-        display.drawTextCentered(display.width() / 2, y, "discover: " PRESS_LABEL);
+        display.drawTextCentered(display.width() / 2, y, UI_PRESS_TEXT("discover:"));
       }
 #endif
 #ifndef UI_NO_HIBERNATE
@@ -547,11 +556,11 @@ public:
       display.setTextSize(1);
       if (_shutdown_init) {
         display.setColor(UIColor::warning_txt);
-        display.drawTextCentered(display.width() / 2, 34, "hibernating...");
+        display.drawTextCentered(display.width() / 2, 34, TR("Hibernating..."));
       } else {
         display.setColor(UIColor::secondary_txt);
         display.drawXbm((display.width() - 32) / 2, 18, power_icon, 32, 32);
-        display.drawTextCentered(display.width() / 2, 64 - 11, "hibernate:" PRESS_LABEL);
+        display.drawTextCentered(display.width() / 2, 64 - 11, UI_PRESS_TEXT("hibernate:"));
       }
 #endif
     }
@@ -566,11 +575,11 @@ public:
     if (c == KEY_NEXT || c == KEY_RIGHT) {
       _page = (_page + 1) % HomePage::Count;
       if (_page == HomePage::RECENT) {
-        _task->showAlert("Recent adverts", 800);
+        _task->showAlert(TR("Recent adverts"), 800);
       }
 #if UI_DISCOVER_SCREEN
       if (_page == HomePage::DISCOVERY) {
-        _task->showAlert("Repeater disc", 800);
+        _task->showAlert(TR("Repeater discovery"), 800);
       }
 #endif
       return true;
@@ -586,10 +595,19 @@ public:
     if (c == KEY_ENTER && _page == HomePage::ADVERT) {
       _task->notify(UIEventType::ack);
       if (the_mesh.advert()) {
-        _task->showAlert("Advert sent!", 1000);
+        _task->showAlert(TR("Advert sent!"), 1000);
       } else {
-        _task->showAlert("Advert failed..", 1000);
+        _task->showAlert(TR("Advert failed.."), 1000);
       }
+      return true;
+    }
+        if (c == KEY_ENTER && _page == HomePage::SPECTRUM) {
+      _task->gotoSpectrumScreen();
+      return true;
+    }
+
+    if (c == KEY_ENTER && _page == HomePage::SETTINGS) {
+      _task->gotoSettingsScreen();
       return true;
     }
 #if ENV_INCLUDE_GPS == 1
@@ -667,7 +685,7 @@ public:
     display.setCursor(0, 0);
     display.setTextSize(1);
     display.setColor(UIColor::corp_blue);
-    sprintf(tmp, "Unread: %d", num_unread);
+    sprintf(tmp, TR("Unread: %d"), num_unread);
     display.print(tmp);
 
     auto p = &unread[head];
@@ -756,6 +774,7 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   splash = new SplashScreen(this);
   home = new HomeScreen(this, &rtc_clock, sensors, node_prefs);
   msg_preview = new MsgPreviewScreen(this, &rtc_clock);
+  spectrum = new SpectrumScreen(this, readSpectrumRSSI);
   setCurrScreen(splash);
 }
 
@@ -1068,8 +1087,8 @@ void UITask::loop() {
           _display->startFrame();
           _display->setTextSize(2);
           _display->setColor(UIColor::warning_txt);
-          _display->drawTextCentered(_display->width() / 2, 20, "Low Battery.");
-          _display->drawTextCentered(_display->width() / 2, 40, "Shutting Down!");
+          _display->drawTextCentered(_display->width() / 2, 20, TR("Low Battery."));
+          _display->drawTextCentered(_display->width() / 2, 40, TR("Shutting Down!"));
           _display->endFrame();
           if (_display->isEink() == false) { delay(3000); }
         }
@@ -1143,7 +1162,7 @@ void UITask::toggleGPS() {
           notify(UIEventType::ack);
         }
         the_mesh.savePrefs();
-        showAlert(_node_prefs->gps_enabled ? "GPS: Enabled" : "GPS: Disabled", 800);
+        showAlert(_node_prefs->gps_enabled ? TR("GPS: Enabled") : TR("GPS: Disabled"), 800);
         _next_refresh = 0;
         break;
       }
@@ -1162,7 +1181,7 @@ void UITask::toggleBuzzer() {
     }
     _node_prefs->buzzer_quiet = buzzer.isQuiet();
     the_mesh.savePrefs();
-    showAlert(buzzer.isQuiet() ? "Buzzer: OFF" : "Buzzer: ON", 800);
+    showAlert(buzzer.isQuiet() ? TR("Buzzer: OFF") : TR("Buzzer: ON"), 800);
     _next_refresh = 0;  // trigger refresh
   #endif
 }
