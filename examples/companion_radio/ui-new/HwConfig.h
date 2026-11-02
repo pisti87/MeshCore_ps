@@ -21,6 +21,10 @@ public:
   void loop();             // hang / rezgés / késleltetett mentés
   void save();             // azonnali mentés
 
+  // --- fényerő beállítások ---
+  uint8_t brightness() const;
+  void setBrightness(uint8_t value);
+
   // --- szenzorok ---
   bool sensorEnabled(HwSensor s) const;
   void setSensor(HwSensor s, bool on);
@@ -64,6 +68,7 @@ private:
     uint8_t keep_usb;
     uint8_t msg_wake;
     int8_t  pins[6];
+    uint8_t brightness;
   } _d;
 
   int8_t   _bz_pin, _vib_pin;          // ténylegesen beállított pinek
