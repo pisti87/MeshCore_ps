@@ -765,9 +765,13 @@ class UISettingsBackend : public SettingsBackend {
 public:
   explicit UISettingsBackend(UITask* t) : _t(t) {}
 
+// UISettingsBackend::getValue()
   void getValue(SettingsItem item, char* out, size_t n) override {
     out[0] = 0;
     switch (item) {
+      case SettingsItem::LANGUAGE:
+        snprintf(out, n, "%s", I18n::langName(I18n::lang()));
+        break;
       case SettingsItem::SCREEN_TIMEOUT:
         hw_config.timeoutLabel(hw_config.timeoutIdx(), out, n);
         break;
@@ -800,6 +804,20 @@ public:
 
   void change(SettingsItem item, int8_t dir) override {
     switch (item) {
+case SettingsItem::LANGUAGE: {
+  int index = (int)I18n::lang();
+
+  if (dir < 0) {
+    index = (index + (int)Lang::COUNT - 1) % (int)Lang::COUNT;
+  } else {
+    index = (index + 1) % (int)Lang::COUNT;
+  }
+
+  I18n::setLang((Lang)index);
+  I18n::save();
+
+  break;
+}
       case SettingsItem::SCREEN_TIMEOUT: {
         uint8_t count = hw_config.timeoutCount();
         uint8_t idx = hw_config.timeoutIdx();
@@ -865,7 +883,12 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   _sensors = sensors;
   _node_prefs = node_prefs;
 
+  // A nyelvi konfiguráció betöltése és a belső tárhely inicializálása.
+  // Ezután a hardverbeállítások is hozzáférnek az InternalFS-hez.
+  I18n::load();
+
   hw_config.begin();
+
   _auto_off_ms = hw_config.timeoutMillis(hw_config.timeoutIdx());
   _keep_usb_on = hw_config.keepUsb();
   _msg_wake = hw_config.msgWake();
