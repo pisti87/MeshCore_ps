@@ -395,7 +395,7 @@ public:
           32, 32);
       display.setColor(UIColor::secondary_txt);
       display.setTextSize(1);
-      display.drawTextCentered(display.width() / 2, 64 - 11, "toggle: " PRESS_LABEL);
+      display.drawTextCentered(display.width() / 2, 64 - 11, UI_PRESS_TEXT("toggle:"));
     } else if (_page == HomePage::ADVERT) {
       display.setColor(UIColor::corp_blue);
       display.drawXbm((display.width() - 32) / 2, 18, advert_icon, 32, 32);
