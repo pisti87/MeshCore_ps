@@ -289,7 +289,7 @@ int SpectrumScreen::render(DisplayDriver& display) {
 // --------------------------------------------------
 
 bool SpectrumScreen::handleInput(char c) {
-  if (c == KEY_CANCEL) {
+  if (c == KEY_CANCEL || c == KEY_ENTER || c == KEY_LEFT) {
     if (_task) {
       _task->gotoHomeScreen();
     }
