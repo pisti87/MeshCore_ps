@@ -2,6 +2,7 @@
 #include "I18n.h"
 #include "SettingsScreen.h"
 #include "SpectrumScreen.h"
+#include "HwConfig.h"
 #include <helpers/TxtDataHelpers.h>
 #include "../MyMesh.h"
 #include "target.h"
@@ -35,6 +36,7 @@
 #endif
 
 #include "icons.h"
+
 static float readSpectrumRSSI(void* context) {
   (void)context;
   return radio_driver.getCurrentRSSI();
@@ -53,7 +55,7 @@ public:
     const char *dash = strchr(ver, '-');
 
     int len = dash ? dash - ver : strlen(ver);
-    if (len >= sizeof(_version_info)) len = sizeof(_version_info) - 1;
+    if (len >= (int)sizeof(_version_info)) len = sizeof(_version_info) - 1;
     memcpy(_version_info, ver, len);
     _version_info[len] = 0;
 
@@ -110,7 +112,7 @@ class HomeScreen : public UIScreen {
 #if UI_DISCOVER_SCREEN
     DISCOVERY,
 #endif
-	SETTINGS,
+    SETTINGS,
 #ifndef UI_NO_HIBERNATE
     SHUTDOWN,
 #endif
@@ -175,14 +177,12 @@ class HomeScreen : public UIScreen {
       display.drawXbm(iconX - 9, iconY + 1, symbol, 8, 8);
     }
 
-    // show muted icon if buzzer is muted (shifted further left when the charging
+    // muted icon: a buzzer ki van kapcsolva (shifted further left when the charging
     // icon already occupies the slot immediately left of the battery)
-#ifdef PIN_BUZZER
-    if (_task->isBuzzerQuiet()) {
+    if (hw_config.buzzerMuted()) {
       display.setColor(UIColor::warning_txt);
       display.drawXbm(iconX - (charging ? 18 : 9), iconY + 1, muted_icon, 8, 8);
     }
-#endif
   }
 
   CayenneLPP sensors_lpp;
@@ -362,6 +362,13 @@ public:
         display.setCursor(display.width() - timestamp_width - 1, y);
         display.print(tmp);
       }
+    } else if (_page == HomePage::SPECTRUM) {
+      display.setColor(UIColor::corp_blue);
+      display.setTextSize(2);
+      display.drawTextCentered(display.width() / 2, 24, TR("Spectrum"));
+      display.setTextSize(1);
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextCentered(display.width() / 2, 64 - 11, UI_PRESS_TEXT("open:"));
     } else if (_page == HomePage::RADIO) {
       display.setColor(UIColor::primary_txt);
       display.setTextSize(1);
@@ -501,7 +508,7 @@ public:
             break;
           default:
             r.skipData(type);
-            strcpy(name, TR("Unknown")); sprintf(buf, "");
+            strcpy(name, TR("Unknown")); buf[0] = 0;
         }
         display.setCursor(0, y);
         display.setColor(UIColor::secondary_txt);
@@ -550,6 +557,13 @@ public:
         display.drawTextCentered(display.width() / 2, y, UI_PRESS_TEXT("discover:"));
       }
 #endif
+    } else if (_page == HomePage::SETTINGS) {
+      display.setColor(UIColor::corp_blue);
+      display.setTextSize(2);
+      display.drawTextCentered(display.width() / 2, 24, TR("Settings"));
+      display.setTextSize(1);
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextCentered(display.width() / 2, 64 - 11, UI_PRESS_TEXT("open:"));
 #ifndef UI_NO_HIBERNATE
     } else if (_page == HomePage::SHUTDOWN) {
       display.setColor(UIColor::corp_blue);
@@ -601,11 +615,10 @@ public:
       }
       return true;
     }
-        if (c == KEY_ENTER && _page == HomePage::SPECTRUM) {
+    if (c == KEY_ENTER && _page == HomePage::SPECTRUM) {
       _task->gotoSpectrumScreen();
       return true;
     }
-
     if (c == KEY_ENTER && _page == HomePage::SETTINGS) {
       _task->gotoSettingsScreen();
       return true;
@@ -740,10 +753,123 @@ public:
   }
 };
 
+// --------------------------------------------------
+// Beállítások backend – a SettingsScreen ezen át éri el az UITask-ot
+// --------------------------------------------------
+
+class UISettingsBackend : public SettingsBackend {
+  UITask* _t;
+
+  static const char* onOff(bool v) { return v ? TR("On") : TR("Off"); }
+
+public:
+  explicit UISettingsBackend(UITask* t) : _t(t) {}
+
+  void getValue(SettingsItem item, char* out, size_t n) override {
+    out[0] = 0;
+    switch (item) {
+      case SettingsItem::SCREEN_TIMEOUT:
+        hw_config.timeoutLabel(hw_config.timeoutIdx(), out, n);
+        break;
+      case SettingsItem::KEEP_USB:
+        snprintf(out, n, "%s", onOff(_t->_keep_usb_on));
+        break;
+      case SettingsItem::MSG_WAKE:
+        snprintf(out, n, "%s", onOff(_t->_msg_wake));
+        break;
+      case SettingsItem::BLUETOOTH:
+        snprintf(out, n, "%s", onOff(_t->isBluetoothEnabled()));
+        break;
+      case SettingsItem::GPS:
+        snprintf(out, n, "%s", onOff(_t->getGPSState()));
+        break;
+      case SettingsItem::BUZZER:
+        if (!hw_config.sensorEnabled(HwSensor::Buzzer)) snprintf(out, n, "%s", TR("Off"));
+        else if (hw_config.pin(HwPin::Buzzer) < 0)      snprintf(out, n, "%s", TR("No pin"));
+        else                                            snprintf(out, n, "%s", TR("On"));
+        break;
+      case SettingsItem::VIBRA:
+        if (!hw_config.sensorEnabled(HwSensor::Vibra)) snprintf(out, n, "%s", TR("Off"));
+        else if (hw_config.pin(HwPin::Vibra) < 0)      snprintf(out, n, "%s", TR("No pin"));
+        else                                           snprintf(out, n, "%s", TR("On"));
+        break;
+      default:
+        break;
+    }
+  }
+
+  void change(SettingsItem item, int8_t dir) override {
+    switch (item) {
+      case SettingsItem::SCREEN_TIMEOUT: {
+        uint8_t count = hw_config.timeoutCount();
+        uint8_t idx = hw_config.timeoutIdx();
+        idx = (dir < 0) ? (idx + count - 1) % count : (idx + 1) % count;
+        hw_config.setTimeoutIdx(idx);
+        _t->_auto_off_ms = hw_config.timeoutMillis(idx);
+        _t->_auto_off = millis() + _t->_auto_off_ms;
+        break;
+      }
+      case SettingsItem::KEEP_USB:
+        _t->_keep_usb_on = !_t->_keep_usb_on;
+        hw_config.setKeepUsb(_t->_keep_usb_on);
+        break;
+      case SettingsItem::MSG_WAKE:
+        _t->_msg_wake = !_t->_msg_wake;
+        hw_config.setMsgWake(_t->_msg_wake);
+        break;
+      case SettingsItem::BLUETOOTH:
+        if (_t->isBluetoothEnabled()) _t->disableBluetooth();
+        else _t->enableBluetooth();
+        break;
+      case SettingsItem::GPS:
+        _t->toggleGPS();
+        break;
+      case SettingsItem::BUZZER: {
+        bool on = !hw_config.sensorEnabled(HwSensor::Buzzer);
+        hw_config.setSensor(HwSensor::Buzzer, on);
+        if (on) hw_config.testBuzzer();
+        break;
+      }
+      case SettingsItem::VIBRA: {
+        bool on = !hw_config.sensorEnabled(HwSensor::Vibra);
+        hw_config.setSensor(HwSensor::Vibra, on);
+        if (on) hw_config.testVibra();
+        break;
+      }
+      case SettingsItem::FLOOD_ADVERT:
+        _t->notify(UIEventType::ack);
+        if (the_mesh.advert()) _t->showAlert(TR("Advert sent!"), 1000);
+        else _t->showAlert(TR("Advert failed.."), 1000);
+        break;
+      case SettingsItem::REBOOT:
+        _t->shutdown(true);
+        break;
+      case SettingsItem::POWER_OFF:
+        _t->shutdown(false);
+        break;
+      default:
+        break;
+    }
+    _t->_next_refresh = 0;
+  }
+
+  void back() override {
+    _t->gotoHomeScreen();
+  }
+};
+
+// --------------------------------------------------
+
 void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs) {
   _display = display;
   _sensors = sensors;
-  _auto_off = millis() + AUTO_OFF_MILLIS;
+  _node_prefs = node_prefs;
+
+  hw_config.begin();
+  _auto_off_ms = hw_config.timeoutMillis(hw_config.timeoutIdx());
+  _keep_usb_on = hw_config.keepUsb();
+  _msg_wake = hw_config.msgWake();
+  _auto_off = millis() + _auto_off_ms;
 
 #if defined(PIN_USER_BTN)
   user_btn.begin();
@@ -752,21 +878,11 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   analog_btn.begin();
 #endif
 
-  _node_prefs = node_prefs;
-
   if (_display != NULL) {
     _display->turnOn();
   }
 
-#ifdef PIN_BUZZER
-  buzzer.begin();
-  buzzer.quiet(_node_prefs->buzzer_quiet);
-  buzzer.startup();
-#endif
-
-#ifdef PIN_VIBRATION
-  vibration.begin();
-#endif
+  hw_config.startupBeep();
 
   ui_started_at = millis();
   _alert_expiry = 0;
@@ -775,7 +891,19 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   home = new HomeScreen(this, &rtc_clock, sensors, node_prefs);
   msg_preview = new MsgPreviewScreen(this, &rtc_clock);
   spectrum = new SpectrumScreen(this, readSpectrumRSSI);
+  settings_backend = new UISettingsBackend(this);
+  settings = new SettingsScreen(settings_backend);
   setCurrScreen(splash);
+}
+
+void UITask::gotoSpectrumScreen() {
+  ((SpectrumScreen *) spectrum)->reset();
+  setCurrScreen(spectrum);
+}
+
+void UITask::gotoSettingsScreen() {
+  ((SettingsScreen *) settings)->resetSelection();
+  setCurrScreen(settings);
 }
 
 void UITask::showAlert(const char* text, int duration_millis) {
@@ -784,32 +912,21 @@ void UITask::showAlert(const char* text, int duration_millis) {
 }
 
 void UITask::notify(UIEventType t) {
-#if defined(PIN_BUZZER)
-switch(t){
-  case UIEventType::contactMessage:
-    // gemini's pick
-    buzzer.play("MsgRcv3:d=4,o=6,b=200:32e,32g,32b,16c7");
-    break;
-  case UIEventType::channelMessage:
-    buzzer.play("kerplop:d=16,o=6,b=120:32g#,32c#");
-    break;
-  case UIEventType::ack:
-    buzzer.play("ack:d=32,o=8,b=120:c");
-    break;
-  case UIEventType::roomMessage:
-  case UIEventType::newContactMessage:
-  case UIEventType::none:
-  default:
-    break;
-}
-#endif
-
-#ifdef PIN_VIBRATION
-  // Trigger vibration for all UI events except none
-  if (t != UIEventType::none) {
-    vibration.trigger();
+  switch (t) {
+    case UIEventType::contactMessage:
+    case UIEventType::channelMessage:
+      // bejövő üzenet: egy csippantás + rezgés (ha be vannak kapcsolva)
+      hw_config.messageAlert();
+      break;
+    case UIEventType::ack:
+      hw_config.ackTick();
+      break;
+    case UIEventType::roomMessage:
+    case UIEventType::newContactMessage:
+    case UIEventType::none:
+    default:
+      break;
   }
-#endif
 }
 
 void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t txt_type, uint32_t sender_timestamp, const char* text) {
@@ -821,12 +938,12 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
   setCurrScreen(msg_preview);
 
   if (_display != NULL) {
-    if (!_display->isOn() && !hasConnection()) {
+    if (!_display->isOn() && _msg_wake && !hasConnection()) {
       _display->turnOn();
     }
     if (_display->isOn()) {
-    _auto_off = millis() + AUTO_OFF_MILLIS;  // extend the auto-off timer
-    _next_refresh = 100;  // trigger refresh
+      _auto_off = millis() + _auto_off_ms;  // extend the auto-off timer
+      _next_refresh = 100;  // trigger refresh
     }
   }
 
@@ -841,12 +958,12 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
   setCurrScreen(msg_preview);
 
   if (_display != NULL) {
-    if (!_display->isOn() && !hasConnection()) {
+    if (!_display->isOn() && _msg_wake && !hasConnection()) {
       _display->turnOn();
     }
     if (_display->isOn()) {
-    _auto_off = millis() + AUTO_OFF_MILLIS;  // extend the auto-off timer
-    _next_refresh = 100;  // trigger refresh
+      _auto_off = millis() + _auto_off_ms;  // extend the auto-off timer
+      _next_refresh = 100;  // trigger refresh
     }
   }
 
@@ -857,7 +974,8 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
 
 void UITask::onQueueSizeChanged(int msgcount) {
   _msgcount = msgcount;
-  if (msgcount == 0) {
+  // csak az üzenet-előnézetből ugrunk haza, a Beállításokból / Spectrumból nem
+  if (msgcount == 0 && curr == msg_preview) {
     gotoHomeScreen();
   }
 }
@@ -907,18 +1025,14 @@ void UITask::setCurrScreen(UIScreen* c) {
 */
 void UITask::shutdown(bool restart){
 
-  #ifdef PIN_BUZZER
-  /* note: we have a choice here -
-     we can do a blocking buzzer.loop() with non-deterministic consequences
-     or we can set a flag and delay the shutdown for a couple of seconds
-     while a non-blocking buzzer.loop() plays out in UITask::loop()
-  */
-  buzzer.shutdown();
-  uint32_t buzzer_timer = millis(); // fail-safe shutdown
-  while (buzzer.isPlaying() && (millis() - 2500) < buzzer_timer)
-    buzzer.loop();
+  hw_config.save();   // a függő beállítások mentése
 
-  #endif // PIN_BUZZER
+  // záró hang: nem blokkoló lejátszás, max. 2,5 s-ig várunk rá
+  hw_config.shutdownBeep();
+  uint32_t beep_timer = millis();
+  while (hw_config.busy() && (millis() - beep_timer) < 2500) {
+    hw_config.loop();
+  }
 
   if (restart) {
     _board->reboot();
@@ -986,7 +1100,7 @@ void UITask::loop() {
   } else if (ev == BUTTON_EVENT_TRIPLE_CLICK) {
     c = handleTripleClick(KEY_SELECT);
   }
-  #endif  
+  #endif
 #endif
 #if defined(UI_HAS_ROTARY_INPUT)
   RotaryInputEvent rotaryEv = rotary_input.poll();
@@ -999,7 +1113,7 @@ void UITask::loop() {
   }
 #endif
 #if defined(PIN_USER_BTN_ANA)
-  if (abs(millis() - _analogue_pin_read_millis) > 10) {
+  if ((millis() - _analogue_pin_read_millis) > 10) {
     int ev = analog_btn.check();
     if (ev == BUTTON_EVENT_CLICK) {
       c = checkDisplayOn(KEY_NEXT);
@@ -1027,15 +1141,13 @@ void UITask::loop() {
 
   if (c != 0 && curr) {
     curr->handleInput(c);
-    _auto_off = millis() + AUTO_OFF_MILLIS;   // extend auto-off timer
+    _auto_off = millis() + _auto_off_ms;   // extend auto-off timer
     _next_refresh = 100;  // trigger refresh
   }
 
   userLedHandler();
 
-#ifdef PIN_BUZZER
-  if (buzzer.isPlaying())  buzzer.loop();
-#endif
+  hw_config.loop();   // buzzer, rezgés, késleltetett mentés
 
   if (curr) curr->poll();
 
@@ -1058,25 +1170,16 @@ void UITask::loop() {
       }
       _display->endFrame();
     }
-#if AUTO_OFF_MILLIS > 0
-#ifdef KEEP_DISPLAY_ON_USB
-    // Opt-in: refresh the auto-off deadline while externally powered, so the
-    // timer counts from the moment external power is removed. Off by default
-    // because OLED panels burn in quickly; only enable for LCD targets or
-    // where the display is replaceable.
-    if (board.isExternalPowered()) {
-      _auto_off = millis() + AUTO_OFF_MILLIS;
+
+    // Opt-in (Beállítások > Keep on USB): külső táplálásnál a kijelző nem alszik el.
+    // OLED-nél égésveszély, ezért alapból ki van kapcsolva.
+    if (_keep_usb_on && board.isExternalPowered()) {
+      _auto_off = millis() + _auto_off_ms;
     }
-#endif
-    if (millis() > _auto_off) {
+    if (_auto_off_ms > 0 && millis() > _auto_off) {
       _display->turnOff();
     }
-#endif
   }
-
-#ifdef PIN_VIBRATION
-  vibration.loop();
-#endif
 
 #ifdef AUTO_SHUTDOWN_MILLIVOLTS
   if (millis() > next_batt_chck) {
@@ -1106,7 +1209,7 @@ char UITask::checkDisplayOn(char c) {
       _display->turnOn();   // turn display on and consume event
       c = 0;
     }
-    _auto_off = millis() + AUTO_OFF_MILLIS;   // extend auto-off timer
+    _auto_off = millis() + _auto_off_ms;   // extend auto-off timer
     _next_refresh = 0;  // trigger refresh
   }
   return c;
@@ -1147,7 +1250,7 @@ bool UITask::getGPSState() {
 }
 
 void UITask::toggleGPS() {
-    if (_sensors != NULL) {
+  if (_sensors != NULL) {
     // toggle GPS on/off
     int num = _sensors->getNumSettings();
     for (int i = 0; i < num; i++) {
@@ -1171,17 +1274,10 @@ void UITask::toggleGPS() {
 }
 
 void UITask::toggleBuzzer() {
-    // Toggle buzzer quiet mode
-  #ifdef PIN_BUZZER
-    if (buzzer.isQuiet()) {
-      buzzer.quiet(false);
-      notify(UIEventType::ack);
-    } else {
-      buzzer.quiet(true);
-    }
-    _node_prefs->buzzer_quiet = buzzer.isQuiet();
-    the_mesh.savePrefs();
-    showAlert(buzzer.isQuiet() ? TR("Buzzer: OFF") : TR("Buzzer: ON"), 800);
-    _next_refresh = 0;  // trigger refresh
-  #endif
+  // hármas kattintás: a hangjelzés ki/be (a Beállítások > Sensors listával megegyezik)
+  bool on = !hw_config.sensorEnabled(HwSensor::Buzzer);
+  hw_config.setSensor(HwSensor::Buzzer, on);
+  if (on) hw_config.testBuzzer();
+  showAlert(on ? TR("Buzzer: ON") : TR("Buzzer: OFF"), 800);
+  _next_refresh = 0;  // trigger refresh
 }
