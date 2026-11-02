@@ -61,11 +61,11 @@ static const Row ROWS[] = {
   { "Flood advert",            "Flood hirdetés",                  "Flood-Ankündigung" },
 
   { "GPS",                     "GPS",                             "GPS" },
-  { "GPS fix",                 "GPS-helyzet rögzítve",            "GPS-Fix" },
-  { "GPS off",                 "GPS kikapcsolva",                 "GPS ausgeschaltet" },
-  { "GPS off (hardware)",      "GPS kikapcsolva (hardver)",       "GPS aus (Hardware)" },
-  { "GPS off (software)",      "GPS kikapcsolva (szoftver)",      "GPS aus (Software)" },
-  { "GPS on",                  "GPS bekapcsolva",                 "GPS eingeschaltet" },
+  { "GPS fix",                 "GPS fix",                         "GPS-Fix" },
+  { "GPS off",                 "GPS ki",                          "GPS ausgeschaltet" },
+  { "GPS off (hardware)",      "GPS ki (hardver)",                "GPS aus (Hardware)" },
+  { "GPS off (software)",      "GPS ki (szoftver)",               "GPS aus (Software)" },
+  { "GPS on",                  "GPS be",                          "GPS eingeschaltet" },
   { "GPS: Disabled",           "GPS: Letiltva",                   "GPS: Deaktiviert" },
   { "GPS: Enabled",            "GPS: Engedélyezve",               "GPS: Aktiviert" },
 
@@ -84,7 +84,7 @@ static const Row ROWS[] = {
   { "Keep on USB",             "Bekapcsolva USB-n",               "Bei USB eingeschaltet" },
 
   { "Language",                "Nyelv",                           "Sprache" },
-  { "LNA",                     "LNA erősítő",                     "LNA-Verstärker" },
+  { "LNA",                     "LNA",                             "LNA" },
   { "Long press: Toggle",      "Hosszú nyomás: váltás",           "Lang drücken: Umschalten" },
   { "Low Battery.",            "Alacsony akkumulátortöltöttség.", "Niedriger Akkustand." },
   { "Low memory",              "Kevés memória",                   "Wenig Speicher" },
