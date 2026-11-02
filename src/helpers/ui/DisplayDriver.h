@@ -36,9 +36,23 @@ public:
   virtual bool isOn() = 0;
   virtual bool isEink() { return false; } // default to non-eink, override in eink drivers
   virtual void forceFullRefresh() {} // next refresh will be full for eink
+
   virtual void turnOn() = 0;
   virtual void turnOff() = 0;
+
+  // Display brightness: 25, 50, 75 or 100 percent.
+  // Default implementation keeps compatibility with drivers
+  // that do not support brightness control.
+  virtual void setBrightness(uint8_t percent) {
+    (void)percent;
+  }
+
+  virtual uint8_t getBrightness() const {
+    return 100;
+  }
+
   virtual void clear() = 0;
+
   virtual void startFrame(ColorVal bkg = UIColor::window_bkg) = 0;
   virtual void setTextSize(int sz) = 0;
   virtual void setColor(ColorVal c) = 0;
