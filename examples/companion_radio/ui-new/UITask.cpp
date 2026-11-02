@@ -78,31 +78,48 @@ public:
   int render(DisplayDriver& display) override {
     display.setColor(UIColor::corp_blue);
 
-    const int logoWidth = 128;
-    display.drawXbm(
-      (display.width() - logoWidth) / 2,
-      2,
-      hellcore_logo,
-      logoWidth,
-      48
-    );
+//    const int logoWidth = 128;
+//    display.drawXbm(
+//      (display.width() - logoWidth) / 2,
+//      2,
+//      hellcore_logo,
+//      logoWidth,
+//      48
+//    );
+const int logoWidth = 128;
+const int logoHeight = 48;
 
-    const char* website = "https://meshcore.io";
-
+display.drawXbm(
+  (display.width() - logoWidth) / 2,
+  2,
+  hellcore_logo,
+  logoWidth,
+  logoHeight
+);
     display.setColor(UIColor::primary_txt);
     display.setTextSize(1);
-
-    uint16_t websiteWidth = display.getTextWidth(website);
-    display.setCursor((display.width() - websiteWidth) / 2, 22);
-    display.print(website);
-
-    display.setColor(UIColor::primary_txt);
-    display.setTextSize(1);
-    display.drawTextCentered(display.width() / 2, 35, _version_info);
+    display.drawTextCentered(display.width() / 2, 55, _version_info);
 
     display.setColor(UIColor::secondary_txt);
     display.setTextSize(1);
-    display.drawTextCentered(display.width() / 2, 48, FIRMWARE_BUILD_DATE);
+    display.drawTextCentered(display.width() / 2, 67, FIRMWARE_BUILD_DATE);
+    //////////////////////
+  //  const char* website = "https://meshcore.io";
+
+//    display.setColor(UIColor::primary_txt);
+//    display.setTextSize(1);
+
+//    uint16_t websiteWidth = display.getTextWidth(website);
+//    display.setCursor((display.width() - websiteWidth) / 2, 22);
+//    display.print(website);
+
+//    display.setColor(UIColor::primary_txt);
+//    display.setTextSize(1);
+//    display.drawTextCentered(display.width() / 2, 35, _version_info);
+
+//    display.setColor(UIColor::secondary_txt);
+//    display.setTextSize(1);
+//    display.drawTextCentered(display.width() / 2, 48, FIRMWARE_BUILD_DATE);
 
     return 1000;
   }
