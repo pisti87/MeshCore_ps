@@ -7,8 +7,20 @@ using ColorVal = uint16_t;
 
 class UIColor {
 public:
-  // color definitions (by element _type_)
-  static ColorVal window_bkg, title_bkg, title_txt, primary_txt, secondary_txt, warning_txt, popup_bkg, popup_txt, corp_blue;
+  // Color definitions by UI element type
+  static ColorVal window_bkg;
+  static ColorVal title_bkg;
+  static ColorVal title_txt;
+  static ColorVal primary_txt;
+  static ColorVal secondary_txt;
+  static ColorVal warning_txt;
+  static ColorVal popup_bkg;
+  static ColorVal popup_txt;
+  static ColorVal corp_blue;
+
+  // Selected menu item colors
+  static ColorVal selected_bkg;
+  static ColorVal selected_txt;
 };
 
 class DisplayDriver {
