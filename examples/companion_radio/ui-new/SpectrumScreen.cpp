@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "I18n.h"
-//#include "MenuUi.h"   // ha az UITask.h nem húzza be, vedd ki a kommentet
+#include "MenuUi.h"   // ha az UITask.h nem húzza be, vedd ki a kommentet
 
 // --------------------------------------------------
 // Spectrum képernyő – 128x64
