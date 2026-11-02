@@ -298,7 +298,7 @@ public:
       #else
       // larger unread message ui for non wifi variants
       display.setTextSize(2);
-      sprintf(tmp, "MSG: %d", _task->getMsgCount());
+      sprintf(tmp, TR("MSG: %d"), _task->getMsgCount());
       display.drawTextCentered(display.width() / 2, 22, tmp);
       #endif
       #ifdef UI_SHOW_CLOCK
