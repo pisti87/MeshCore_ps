@@ -68,12 +68,6 @@ void HwConfig::setDefaults() {
   _d.pins[(uint8_t)HwPin::Vibra] = (int8_t)PIN_VIBRATION;
   _d.sensor_mask |= 1 << (uint8_t)HwSensor::Vibra;
 #endif
-#ifdef PIN_GPS_RX
-  _d.pins[(uint8_t)HwPin::GpsRx] = (int8_t)PIN_GPS_RX;
-#endif
-#ifdef PIN_GPS_TX
-  _d.pins[(uint8_t)HwPin::GpsTx] = (int8_t)PIN_GPS_TX;
-#endif
 #ifdef PIN_BOARD_SDA
   _d.pins[(uint8_t)HwPin::I2cSda] = (int8_t)PIN_BOARD_SDA;
 #endif
@@ -205,8 +199,7 @@ HwSensor HwConfig::sensorOfPin(HwPin p) {
   switch (p) {
     case HwPin::Buzzer: return HwSensor::Buzzer;
     case HwPin::Vibra:  return HwSensor::Vibra;
-    case HwPin::GpsRx:
-    case HwPin::GpsTx:  return HwSensor::Gps;
+
     default:            return HwSensor::Env;
   }
 }
