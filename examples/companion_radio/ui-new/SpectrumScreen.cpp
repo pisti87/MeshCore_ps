@@ -1,38 +1,36 @@
-
 #include "SpectrumScreen.h"
 #include "UITask.h"
 
 #include <stdio.h>
+#include <math.h>
 #include "I18n.h"
-//#include "MenuUi.h"
+//#include "MenuUi.h"   // ha az UITask.h nem húzza be, vedd ki a kommentet
 
 // --------------------------------------------------
 // Spectrum képernyő – 128x64
 // --------------------------------------------------
 
-static const int GRAPH_X = 2;
-static const int GRAPH_Y = 23;
-static const int GRAPH_H = 39;
-
+static const int GRAPH_X      = 2;
+static const int GRAPH_Y      = 23;
+static const int GRAPH_H      = 39;
 static const int GRAPH_BORDER = 1;
-static const float NOISE_FLOOR_DEFAULT = -95.0f;
 
-// A keret kirajzolásának állapota.
-// Egyetlen SpectrumScreen példányhoz.
-static bool graph_frame_drawn = false;
+static const int LABEL_Y = 12;
+
+static const float RSSI_MIN = -120.0f;
+static const float RSSI_MAX = -40.0f;
 
 // --------------------------------------------------
 // RSSI érték átalakítása képernyő-koordinátává
 // --------------------------------------------------
 
 int SpectrumScreen::rssiToY(float rssi, int graph_y, int graph_h) {
-  if (rssi < -120.0f) rssi = -120.0f;
-  if (rssi > -40.0f) rssi = -40.0f;
+  if (rssi < RSSI_MIN) rssi = RSSI_MIN;
+  if (rssi > RSSI_MAX) rssi = RSSI_MAX;
 
-  float normalized = (rssi + 120.0f) / 80.0f;
+  float normalized = (rssi - RSSI_MIN) / (RSSI_MAX - RSSI_MIN);
 
-  return graph_y + graph_h -
-         (int)(normalized * graph_h);
+  return graph_y + graph_h - (int)lroundf(normalized * graph_h);
 }
 
 // --------------------------------------------------
@@ -47,13 +45,13 @@ SpectrumScreen::SpectrumScreen(
   : _task(task),
     _reader(reader),
     _context(context),
-    _current_rssi(-120.0f),
+    _current_rssi(RSSI_MIN),
     _write_pos(0),
     _sample_count(0),
     _last_sample(0) {
 
   for (uint8_t i = 0; i < SAMPLE_COUNT; i++) {
-    _samples[i] = -120.0f;
+    _samples[i] = RSSI_MIN;
   }
 }
 
@@ -62,16 +60,24 @@ SpectrumScreen::SpectrumScreen(
 // --------------------------------------------------
 
 void SpectrumScreen::reset() {
-  _write_pos = 0;
-  _sample_count = 0;
-  _current_rssi = -120.0f;
-  _last_sample = 0;
-
-  graph_frame_drawn = false;
+  _write_pos     = 0;
+  _sample_count  = 0;
+  _current_rssi  = RSSI_MIN;
+  _last_sample   = 0;
 
   for (uint8_t i = 0; i < SAMPLE_COUNT; i++) {
-    _samples[i] = -120.0f;
+    _samples[i] = RSSI_MIN;
   }
+}
+
+// --------------------------------------------------
+// Körpuffer elérése: 0 = legrégebbi minta
+// --------------------------------------------------
+
+float SpectrumScreen::sampleAt(uint8_t i) const {
+  uint8_t index =
+    (_write_pos + SAMPLE_COUNT - _sample_count + i) % SAMPLE_COUNT;
+  return _samples[index];
 }
 
 // --------------------------------------------------
@@ -92,14 +98,13 @@ void SpectrumScreen::poll() {
   float rssi = _reader(_context);
 
   // Érvénytelen mérés esetén megtartjuk az előző adatokat.
-  if (rssi > 0.0f || rssi < -150.0f) {
+  if (isnan(rssi) || rssi > 0.0f || rssi < -150.0f) {
     return;
   }
 
   _current_rssi = rssi;
 
   _samples[_write_pos] = rssi;
-
   _write_pos = (_write_pos + 1) % SAMPLE_COUNT;
 
   if (_sample_count < SAMPLE_COUNT) {
@@ -108,7 +113,7 @@ void SpectrumScreen::poll() {
 }
 
 // --------------------------------------------------
-// Szaggatott referencia-vonal
+// Vonalak
 // --------------------------------------------------
 
 static void drawDashedLine(
@@ -120,20 +125,24 @@ static void drawDashedLine(
   display.setColor(UIColor::warning_txt);
 
   const int dash_width = 3;
-  const int dash_gap = 2;
+  const int dash_gap   = 2;
 
   for (int pos = 0; pos < width; pos += dash_width + dash_gap) {
     int remaining = width - pos;
-    int current_width =
-      remaining < dash_width ? remaining : dash_width;
+    int current_width = remaining < dash_width ? remaining : dash_width;
 
-    display.fillRect(
-      x + pos,
-      y,
-      current_width,
-      1
-    );
+    display.fillRect(x + pos, y, current_width, 1);
   }
+}
+
+static void drawSolidLine(
+  DisplayDriver& display,
+  int x,
+  int y,
+  int width
+) {
+  display.setColor(UIColor::primary_txt);
+  display.fillRect(x, y, width, 1);
 }
 
 // --------------------------------------------------
@@ -162,196 +171,115 @@ int SpectrumScreen::render(DisplayDriver& display) {
   );
 
   // ----------------------------------------------
-  // NF és PK kiszámítása
+  // NF (minimum) és PK (maximum) kiszámítása
   // ----------------------------------------------
 
-  float noise_floor = NOISE_FLOOR_DEFAULT;
-  float peak = -120.0f;
+  const bool has_data = _sample_count > 0;
 
-  if (_sample_count > 0) {
-    noise_floor = _samples[
-      (_write_pos + SAMPLE_COUNT - _sample_count) % SAMPLE_COUNT
-    ];
+  float noise_floor = RSSI_MIN;
+  float peak        = RSSI_MIN;
 
-    peak = noise_floor;
+  if (has_data) {
+    noise_floor = sampleAt(0);
+    peak        = noise_floor;
 
-    for (uint8_t i = 0; i < _sample_count; i++) {
-      uint8_t index =
-        (_write_pos + SAMPLE_COUNT - _sample_count + i)
-        % SAMPLE_COUNT;
+    for (uint8_t i = 1; i < _sample_count; i++) {
+      float value = sampleAt(i);
 
-      float value = _samples[index];
-
-      if (value < noise_floor) {
-        noise_floor = value;
-      }
-
-      if (value > peak) {
-        peak = value;
-      }
+      if (value < noise_floor) noise_floor = value;
+      if (value > peak)        peak = value;
     }
   }
 
   // ----------------------------------------------
-  // NF / NOW / PK értékek
+  // NF / NOW / PK feliratok
   // ----------------------------------------------
 
-  char nf_text[12];
-  char now_text[12];
-  char pk_text[12];
+  char nf_text[14];
+  char now_text[14];
+  char pk_text[14];
 
-  snprintf(nf_text, sizeof(nf_text),
-           "NF %d", (int)(noise_floor - 0.5f));
-
-  snprintf(now_text, sizeof(now_text),
-           "NOW %d", (int)(_current_rssi - 0.5f));
-
-  snprintf(pk_text, sizeof(pk_text),
-           "PK %d", (int)(peak - 0.5f));
+  if (has_data) {
+    snprintf(nf_text,  sizeof(nf_text),  "NF%d",  (int)lroundf(noise_floor));
+    snprintf(now_text, sizeof(now_text), "NOW%d", (int)lroundf(_current_rssi));
+    snprintf(pk_text,  sizeof(pk_text),  "PK%d",  (int)lroundf(peak));
+  } else {
+    snprintf(nf_text,  sizeof(nf_text),  "NF --");
+    snprintf(now_text, sizeof(now_text), "NOW --");
+    snprintf(pk_text,  sizeof(pk_text),  "PK --");
+  }
 
   display.setTextSize(1);
   display.setColor(UIColor::primary_txt);
 
-  display.setCursor(2, 12);
+  // NF balra, NOW középre, PK jobbra igazítva – nem lapolódnak át.
+  display.setCursor(GRAPH_X, LABEL_Y);
   display.print(nf_text);
 
-  display.setCursor(width / 3 + 2, 12);
+  int now_w = (int)display.getTextWidth(now_text);
+  display.setCursor((width - now_w) / 2, LABEL_Y);
   display.print(now_text);
 
-  display.setCursor((width * 2) / 3 + 2, 12);
+  int pk_w = (int)display.getTextWidth(pk_text);
+  display.setCursor(width - GRAPH_X - pk_w, LABEL_Y);
   display.print(pk_text);
 
   // ----------------------------------------------
-  // A keret csak egyszer rajzolódik ki.
+  // Keret – minden képkockánál kirajzoljuk, mert a
+  // kijelző puffere frame-enként törlődik.
   // ----------------------------------------------
 
-  if (!graph_frame_drawn) {
-    display.setColor(UIColor::secondary_txt);
+  display.setColor(UIColor::secondary_txt);
 
-    // Felső és alsó keret.
-    display.fillRect(GRAPH_X, GRAPH_Y, graph_w, 1);
-    display.fillRect(
-      GRAPH_X,
-      GRAPH_Y + GRAPH_H - 1,
-      graph_w,
-      1
-    );
-
-    // Bal és jobb keret.
-    display.fillRect(GRAPH_X, GRAPH_Y, 1, GRAPH_H);
-    display.fillRect(
-      GRAPH_X + graph_w - 1,
-      GRAPH_Y,
-      1,
-      GRAPH_H
-    );
-
-    graph_frame_drawn = true;
-  }
+  display.fillRect(GRAPH_X, GRAPH_Y, graph_w, 1);                    // felső
+  display.fillRect(GRAPH_X, GRAPH_Y + GRAPH_H - 1, graph_w, 1);      // alsó
+  display.fillRect(GRAPH_X, GRAPH_Y, 1, GRAPH_H);                    // bal
+  display.fillRect(GRAPH_X + graph_w - 1, GRAPH_Y, 1, GRAPH_H);      // jobb
 
   // ----------------------------------------------
-  // Csak a grafikon belsejét töröljük.
-  // A kerethez nem nyúlunk.
+  // A grafikon belsejének törlése
   // ----------------------------------------------
 
   display.setColor(UIColor::window_bkg);
+  display.fillRect(inner_x, inner_y, inner_w, inner_h);
 
-  display.fillRect(
-    inner_x,
-    inner_y,
-    inner_w,
-    inner_h
-  );
-
-  // ----------------------------------------------
-  // RSSI oszlopok
-  // ----------------------------------------------
-
-  if (_sample_count > 0) {
-    const int bar_w = inner_w / SAMPLE_COUNT;
-
-    for (uint8_t i = 0; i < _sample_count; i++) {
-      uint8_t index =
-        (_write_pos + SAMPLE_COUNT - _sample_count + i)
-        % SAMPLE_COUNT;
-
-      float value = _samples[index];
-
-      int y = rssiToY(
-        value,
-        inner_y,
-        inner_h
-      );
-
-      int bar_height = inner_y + inner_h - y;
-
-      if (bar_height < 1) {
-        bar_height = 1;
-      }
-
-      int x = inner_x + i * bar_w;
-
-      display.setColor(UIColor::corp_blue);
-
-      display.fillRect(
-        x,
-        y,
-        bar_w > 1 ? bar_w - 1 : 1,
-        bar_height
-      );
-    }
+  if (!has_data) {
+    return SAMPLE_INTERVAL_MS;
   }
 
   // ----------------------------------------------
-  // NF referencia-vonal
+  // RSSI oszlopok – a teljes belső szélességen
+  // egyenletesen elosztva (egész osztás-hiba nélkül)
   // ----------------------------------------------
 
-  int nf_y = rssiToY(
-    noise_floor,
-    inner_y,
-    inner_h
-  );
+  display.setColor(UIColor::corp_blue);
 
-  drawDashedLine(
-    display,
-    inner_x,
-    nf_y,
-    inner_w
-  );
+  for (uint8_t i = 0; i < _sample_count; i++) {
+    int x0 = inner_x + (i * inner_w) / SAMPLE_COUNT;
+    int x1 = inner_x + ((i + 1) * inner_w) / SAMPLE_COUNT;
 
-  // ----------------------------------------------
-  // NOW aktuális érték
-  // ----------------------------------------------
+    int bar_w = x1 - x0 - 1;     // 1 px rés az oszlopok között
+    if (bar_w < 1) bar_w = 1;
 
-  int now_y = rssiToY(
-    _current_rssi,
-    inner_y,
-    inner_h
-  );
+    int y = rssiToY(sampleAt(i), inner_y, inner_h);
 
-  drawDashedLine(
-    display,
-    inner_x,
-    now_y,
-    inner_w
-  );
+    int bar_height = inner_y + inner_h - y;
+    if (bar_height < 1) bar_height = 1;
+
+    display.fillRect(x0, y, bar_w, bar_height);
+  }
 
   // ----------------------------------------------
-  // PK csúcsérték
+  // Referencia-vonalak
   // ----------------------------------------------
 
-  int pk_y = rssiToY(
-    peak,
-    inner_y,
-    inner_h
-  );
+  int nf_y  = rssiToY(noise_floor,   inner_y, inner_h);
+  int pk_y  = rssiToY(peak,          inner_y, inner_h);
+  int now_y = rssiToY(_current_rssi, inner_y, inner_h);
 
-  drawDashedLine(
-    display,
-    inner_x,
-    pk_y,
-    inner_w
-  );
+  drawDashedLine(display, inner_x, nf_y, inner_w);   // NF – szaggatott
+  drawDashedLine(display, inner_x, pk_y, inner_w);   // PK – szaggatott
+  drawSolidLine (display, inner_x, now_y, inner_w);  // NOW – folytonos
 
   return SAMPLE_INTERVAL_MS;
 }
@@ -365,7 +293,6 @@ bool SpectrumScreen::handleInput(char c) {
     if (_task) {
       _task->gotoHomeScreen();
     }
-
     return true;
   }
 
