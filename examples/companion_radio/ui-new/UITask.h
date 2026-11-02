@@ -22,6 +22,10 @@
 #include "../AbstractUITask.h"
 #include "../NodePrefs.h"
 
+// Elődeklarációk
+class SettingsBackend;
+class UISettingsBackend;
+
 #ifdef UI_NO_DISCOVER_SCREEN
   #error "UI_NO_DISCOVER_SCREEN is obsolete - use -D UI_DISCOVER_SCREEN=0 instead"
 #endif
@@ -75,7 +79,16 @@ class UITask : public AbstractUITask {
   UIScreen* splash;
   UIScreen* home;
   UIScreen* msg_preview;
+  UIScreen* spectrum;
+  UIScreen* settings;
   UIScreen* curr;
+
+  SettingsBackend* settings_backend;
+  uint32_t _auto_off_ms;
+  bool _keep_usb_on;
+  bool _msg_wake;
+
+  friend class UISettingsBackend;
 
   void userLedHandler();
 
@@ -97,6 +110,9 @@ public:
   void begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs);
 
   void gotoHomeScreen() { setCurrScreen(home); }
+  void gotoSpectrumScreen();
+  void gotoSettingsScreen();
+
   void showAlert(const char* text, int duration_millis);
   int  getMsgCount() const { return _msgcount; }
   bool hasDisplay() const { return _display != NULL; }
