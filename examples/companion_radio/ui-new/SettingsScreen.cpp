@@ -150,14 +150,21 @@ int SettingsScreen::render(DisplayDriver& display) {
 
     getRow(row, label, sizeof(label), value, sizeof(value));
 
-    if (row == _selected) {
-      display.setColor(UIColor::primary_txt);
-      display.fillRect(0, y - 1, right + 1, ROW_H);
-      display.setColor(UIColor::window_bkg);
-    } else {
-      display.setColor(UIColor::primary_txt);
-    }
-
+//    if (row == _selected) {
+//      display.setColor(UIColor::primary_txt);
+//      display.fillRect(0, y - 1, right + 1, ROW_H);
+//      display.setColor(UIColor::window_bkg);
+//    } else {
+//      display.setColor(UIColor::primary_txt);
+//    }
+if (row == _selected) {
+  display.setColor(UIColor::selected_bkg);
+  display.fillRect(0, y - 1, right + 1, ROW_H);
+  display.setColor(UIColor::selected_txt);
+} else {
+  display.setColor(UIColor::primary_txt);
+}
+    
     int vw = value[0] ? (int)display.getTextWidth(value) : 0;
     display.drawTextEllipsized(1, y, right - vw - 4, label);
     if (vw) {
