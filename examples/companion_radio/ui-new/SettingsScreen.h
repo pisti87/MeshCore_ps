@@ -1,34 +1,32 @@
 #pragma once
-// Settings menu (reached from the last carousel page with OK, BACK returns).
+// Beállítások menü (a körhinta utolsó előtti oldaláról OK-val érhető el).
 //
-// Keys: UP/DOWN (KEY_PREV/KEY_NEXT) move, LEFT/RIGHT change a value, OK toggles / runs,
-// BACK (KEY_CANCEL) leaves. Reboot / Hibernate / Power off need OK twice within 3 s.
-// The real work is done by a SettingsBackend that the UITask patch implements.
+// Navigáció: KEY_PREV / KEY_NEXT lép a sorok között, KEY_LEFT / KEY_RIGHT értéket vált,
+// KEY_ENTER (OK) kapcsol / lefuttat, KEY_CANCEL visszalép. Minden listában van egy
+// "< Back" sor az első helyen – egygombos eszközön is kilépthető.
+// Újraindítás / Kikapcsolás: kétszer kell OK-t nyomni 3 mp-en belül.
+//
+// Az Érzékelők és Pinek almenü közvetlenül a hw_config-ot használja.
 
 #include <Arduino.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <helpers/ui/UIScreen.h>
 #include <helpers/ui/DisplayDriver.h>
+#include "HwConfig.h"
 
 enum class SettingsItem : uint8_t {
-  THEME,            // Light / Dark
-  SCREEN_TIMEOUT,   // 5s 10s 15s 30s 1min 2min 5min
-  KEEP_USB,         // keep the screen on while on USB power
-  MSG_WAKE,         // wake the screen on a new message
+  SCREEN_TIMEOUT,   // 5s ... 5min
+  KEEP_USB,         // képernyő bekapcsolva marad USB táplálásnál
+  MSG_WAKE,         // új üzenet felébreszti a képernyőt
   BLUETOOTH,
   GPS,
-  SHARE_POSITION,
-  LNA,
-  RX_BOOST,
-  FLOOD_ADVERT,     // action: send a flood advert now
-  UNITS,            // Metric / Imperial
-  LANGUAGE,         // English / Magyar / Deutsch
-  SENSORS,          // submenu
-  BUTTONS,          // submenu
-  BUZZER,           // submenu
+  BUZZER,           // hangjelzés be/ki
+  VIBRA,            // rezgés be/ki
+  FLOOD_ADVERT,     // akció: advert küldése
+  SENSORS,          // almenü: mely szenzorokat használjuk
+  PINS,             // almenü: a kiválasztott szenzorok pinjei
   REBOOT,
-  HIBERNATE,
   POWER_OFF,
   COUNT
 };
@@ -36,13 +34,11 @@ enum class SettingsItem : uint8_t {
 class SettingsBackend {
 public:
   virtual ~SettingsBackend() {}
-  // Text shown on the right ("On", "Dark", "30s" ...). Empty = nothing.
+  // Jobb oldali érték szövege ("On", "30s" ...). Üres = nincs.
   virtual void getValue(SettingsItem item, char* out, size_t n) = 0;
-  // dir +1 / -1 = LEFT/RIGHT, 0 = OK pressed (toggle, cycle, or run the action).
+  // dir +1 / -1 = RIGHT / LEFT, 0 = OK (kapcsol, léptet vagy végrehajt).
   virtual void change(SettingsItem item, int8_t dir) = 0;
-  // SENSORS / BUTTONS / BUZZER: show the hardware screen section.
-  virtual void openPage(SettingsItem item) = 0;
-  // BACK pressed: return to the carousel.
+  // BACK a főmenüben: vissza a körhintára.
   virtual void back() = 0;
 };
 
@@ -57,11 +53,24 @@ public:
   void resetSelection();
 
 private:
-  SettingsBackend* _backend;
-  uint8_t _selected;
-  uint8_t _first_visible;
-  int8_t _confirm;              // item waiting for a second OK, -1 = none
-  uint32_t _confirm_until;
+  enum Page : uint8_t { PAGE_MAIN, PAGE_SENSORS, PAGE_PINS };
 
+  SettingsBackend* _backend;
+  uint8_t  _page;
+  uint8_t  _selected;
+  uint8_t  _first_visible;
+  int8_t   _confirm;            // megerősítésre váró elem, -1 = nincs
+  uint32_t _confirm_until;
+  HwPin    _vis_pins[(uint8_t)HwPin::COUNT];
+  uint8_t  _vis_count;
+
+  void rebuildPins();
+  int  rowCount() const;
+  void getRow(int row, char* label, size_t ln, char* value, size_t vn);
   void move(int8_t dir);
+  void act(int8_t dir);
+  void actMain(SettingsItem item, int8_t dir);
+  void actSensor(HwSensor s);
+  void actPin(HwPin p, int8_t dir);
+  void goBack();
 };
