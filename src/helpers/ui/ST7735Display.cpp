@@ -417,16 +417,17 @@ bool ST7735Display::i2c_probe(TwoWire& wire, uint8_t addr) {
   #define PIN_TFT_LEDA_CTL_ACTIVE  HIGH
 #endif
 
-// Color scheme
-ColorVal UIColor::window_bkg = ST77XX_WHITE;
-ColorVal UIColor::title_bkg = ST77XX_BLUE;
-ColorVal UIColor::title_txt = ST77XX_WHITE;
-ColorVal UIColor::primary_txt = ST77XX_BLACK;
-ColorVal UIColor::secondary_txt = (18 << 11) | (36 << 5) | 18;  // mid-gray
-ColorVal UIColor::warning_txt = ST77XX_ORANGE;
-ColorVal UIColor::popup_bkg = ST77XX_CYAN;
-ColorVal UIColor::popup_txt = ST77XX_BLACK;
-ColorVal UIColor::corp_blue = 0x001A;
+// dark theme
+ColorVal UIColor::window_bkg = 0x2104;      // Háttér: #212121
+ColorVal UIColor::title_bkg = 0x39C7;       // Fejléc: #373737
+ColorVal UIColor::title_txt = 0xFFFF;       // Fejléc szöveg: fehér
+ColorVal UIColor::primary_txt = 0xFFFF;     // Fő szöveg: FEHÉR
+ColorVal UIColor::secondary_txt = 0xFFFF;   // Másodlagos/középső szöveg: FEHÉR
+ColorVal UIColor::warning_txt = 0xFFE0;     // Figyelmeztetés: sárga
+ColorVal UIColor::popup_bkg = 0xF79E;       // Popup háttér
+ColorVal UIColor::popup_txt = 0x39C7;       // Popup szöveg
+ColorVal UIColor::corp_blue = 0x03EF;       // Kék kiemelés
+//ColorVal UIColor::secondary_txt = (18 << 11) | (36 << 5) | 18;  // mid-gray
 
 bool ST7735Display::begin() {
   if (!sprite) {
