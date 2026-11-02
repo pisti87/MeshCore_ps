@@ -95,7 +95,7 @@ static const Row ROWS[] = {
   { "Memory OK",               "Memória rendben",                 "Speicher OK" },
   { "Modules",                 "Modulok",                         "Module" },
   { "Msg wake",                "Üzenetre ébresztés",              "Bei Nachricht aufwecken" },
-  { "MSG: %d",                 "ÜZENET: %d",                      "NACHR.: %d" },
+  { "MSG: %d",                 "Üzenetek: %d",                    "NACHR.: %d" },
 
   { "No GPS fix",              "Nincs GPS-helyzet",               "Kein GPS-Fix" },
   { "No module",               "Nincs modul",                     "Kein Modul" },
