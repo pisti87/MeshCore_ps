@@ -3,15 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// SettingsScreen saját színei – csak erre a képernyőre érvényesek
-// ez a patch csak a RAK_4631_companion_radio_ble és az RAK_4631_companion_radio_ethernet megoldása
-// SettingsScreen saját kijelölési színei
-// Nem módosítják a globális színrendszert.
-namespace {
-    constexpr ColorVal SETTINGS_SELECTED_BKG = UIColor::primary_txt;
-    constexpr ColorVal SETTINGS_SELECTED_TXT = UIColor::window_bkg;
-}
-
 static const int ROW_H    = 10;
 static const int LIST_TOP = 14;
 
@@ -130,9 +121,7 @@ void SettingsScreen::getRow(int row, char* label, size_t ln, char* value, size_t
 int SettingsScreen::render(DisplayDriver& display) {
   const int w = display.width();
   const int h = display.height();
-  //RAK_4631
-//SETTINGS_SELECTED_BKG
-  
+
   // fejléc
   display.setColor(UIColor::title_bkg);
   display.fillRect(0, 0, w, 12);
