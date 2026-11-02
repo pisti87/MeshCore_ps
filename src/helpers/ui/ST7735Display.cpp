@@ -42,7 +42,6 @@
 #define ST77XX_RDID3     0xDC
 #define ST77XX_RDID4     0xDD
 
-// Some ready-made 16-bit ('565') color settings:
 #define ST77XX_BLACK   0x0000
 #define ST77XX_WHITE   0xFFFF
 #define ST77XX_RED     0xF800
@@ -53,7 +52,6 @@
 #define ST77XX_YELLOW  0xFFE0
 #define ST77XX_ORANGE  0xFC00
 
-// Some flags for initR():
 #define INITR_GREENTAB          0x00
 #define INITR_REDTAB            0x01
 #define INITR_BLACKTAB          0x02
@@ -65,7 +63,6 @@
 #define INITR_HALLOWING         0x05
 #define INITR_MINI160x80_PLUGIN 0x06
 
-// Some register settings
 #define ST7735_MADCTL_BGR 0x08
 #define ST7735_MADCTL_MH  0x04
 
@@ -101,7 +98,6 @@ static TFT_eSPI lcd = TFT_eSPI(160, 80);
 
 // -----------------------------------------------------------------------------
 // Globális kijelzőváltozók
-// Fontos: ezeknek az UTF-8 segédfüggvények előtt kell szerepelniük.
 // -----------------------------------------------------------------------------
 
 static uint32_t curr_color = ST77XX_WHITE;
@@ -125,7 +121,6 @@ enum Utf8Accent : uint8_t {
 
 static uint8_t _text_size = 1;
 
-// UTF-8 karakter dekódolása.
 static uint32_t decodeUtf8(const char*& p) {
     if (!p || !*p) {
         return 0;
@@ -164,7 +159,6 @@ static uint32_t decodeUtf8(const char*& p) {
         codepoint = (codepoint << 6) | (next & 0x3F);
     }
 
-    // Érvénytelen Unicode tartományok ellenőrzése.
     if ((remaining == 1 && codepoint < 0x80) ||
         (remaining == 2 && codepoint < 0x800) ||
         (remaining == 3 && codepoint < 0x10000) ||
@@ -176,52 +170,40 @@ static uint32_t decodeUtf8(const char*& p) {
     return codepoint;
 }
 
-// Unicode karakter leképezése ASCII alapbetűre.
 static char mapHungarianChar(uint32_t cp, Utf8Accent& accent) {
     accent = ACCENT_NONE;
 
     switch (cp) {
-        // Á / á
         case 0x00C1: accent = ACCENT_ACUTE;        return 'A';
         case 0x00E1: accent = ACCENT_ACUTE;        return 'a';
 
-        // É / é
         case 0x00C9: accent = ACCENT_ACUTE;        return 'E';
         case 0x00E9: accent = ACCENT_ACUTE;        return 'e';
 
-        // Í / í
         case 0x00CD: accent = ACCENT_ACUTE;        return 'I';
         case 0x00ED: accent = ACCENT_ACUTE;        return 'i';
 
-        // Ó / ó
         case 0x00D3: accent = ACCENT_ACUTE;        return 'O';
         case 0x00F3: accent = ACCENT_ACUTE;        return 'o';
 
-        // Ö / ö
         case 0x00D6: accent = ACCENT_DIAERESIS;    return 'O';
         case 0x00F6: accent = ACCENT_DIAERESIS;    return 'o';
 
-        // Ő / ő
         case 0x0150: accent = ACCENT_DOUBLE_ACUTE; return 'O';
         case 0x0151: accent = ACCENT_DOUBLE_ACUTE; return 'o';
 
-        // Ú / ú
         case 0x00DA: accent = ACCENT_ACUTE;        return 'U';
         case 0x00FA: accent = ACCENT_ACUTE;        return 'u';
 
-        // Ü / ü
         case 0x00DC: accent = ACCENT_DIAERESIS;    return 'U';
         case 0x00FC: accent = ACCENT_DIAERESIS;    return 'u';
 
-        // Ű / ű
         case 0x0170: accent = ACCENT_DOUBLE_ACUTE; return 'U';
         case 0x0171: accent = ACCENT_DOUBLE_ACUTE; return 'u';
 
-        // Német Ä / ä
         case 0x00C4: accent = ACCENT_DIAERESIS;    return 'A';
         case 0x00E4: accent = ACCENT_DIAERESIS;    return 'a';
 
-        // Német ß: egy karakterhelyen s-ként jelenik meg.
         case 0x00DF: return 's';
 
         default:
@@ -233,10 +215,6 @@ static char mapHungarianChar(uint32_t cp, Utf8Accent& accent) {
     }
 }
 
-// Ékezet kirajzolása pixelekkel.
-//
-// A TFT_eSPI alap betűkészletének karaktercelláján belül rajzolunk.
-// A karakter alapbetűje már ki van rajzolva, a kurzorpozíciót nem módosítjuk.
 static void drawHungarianAccent(
     int16_t x,
     int16_t y,
@@ -248,8 +226,6 @@ static void drawHungarianAccent(
 
     const int16_t s = (_text_size > 0) ? _text_size : 1;
 
-    // Az ékezetet a karakter felső részéhez igazítjuk.
-    // A kurzor Y pozíciója a karaktercella felső széle.
     auto pixel = [&](int16_t px, int16_t py) {
         const int16_t drawX = x + px * s;
         const int16_t drawY = y - s + py * s;
@@ -288,7 +264,7 @@ static void drawHungarianAccent(
     }
 }
 
-#endif // HELTEC_T096
+#endif
 
 // -----------------------------------------------------------------------------
 // SPI
@@ -689,12 +665,6 @@ bool ST7735Display::i2c_probe(TwoWire& wire, uint8_t addr) {
     (void)addr;
 
     return true;
-
-    /*
-    wire.beginTransmission(addr);
-    uint8_t error = wire.endTransmission();
-    return (error == 0);
-    */
 }
 
 #ifndef PIN_TFT_LEDA_CTL_ACTIVE
@@ -790,6 +760,7 @@ bool ST7735Display::begin() {
         sendCommand(ST77XX_DISPON);
 
         _isOn = true;
+        setBrightness(_brightness);
     }
 
     return true;
@@ -829,10 +800,8 @@ void ST7735Display::_resetAndInit() {
 
     endFrame();
 
-    digitalWrite(
-        PIN_TFT_LEDA_CTL,
-        PIN_TFT_LEDA_CTL_ACTIVE
-    );
+    // A háttérvilágítás vezérlését a setBrightness() végzi.
+    // Itt nem állítjuk digitális szintre a lábat, mert az felülírná a PWM-et.
 }
 
 // -----------------------------------------------------------------------------
@@ -850,6 +819,7 @@ void ST7735Display::turnOn() {
         sendCommand(ST77XX_DISPON);
 
         _isOn = true;
+        setBrightness(_brightness);
     }
 }
 
@@ -857,10 +827,15 @@ void ST7735Display::turnOff() {
     if (_isOn) {
         sendCommand(ST77XX_DISPOFF);
 
+#if defined(HELTEC_T096)
+        // Aktív LOW háttérvilágítás: 255 = teljesen kikapcsolt LED.
+        analogWrite(PIN_TFT_LEDA_CTL, 255);
+#else
         digitalWrite(
             PIN_TFT_LEDA_CTL,
             !PIN_TFT_LEDA_CTL_ACTIVE
         );
+#endif
 
         _isOn = false;
 
@@ -868,6 +843,53 @@ void ST7735Display::turnOff() {
             _peripher_power->release();
         }
     }
+}
+
+// -----------------------------------------------------------------------------
+// Brightness control
+// -----------------------------------------------------------------------------
+
+void ST7735Display::setBrightness(uint8_t percent) {
+    // A támogatott fényerőszintek: 25, 50, 75 és 100%.
+    if (percent < 25) {
+        percent = 25;
+    } else if (percent > 100) {
+        percent = 100;
+    }
+
+    if (percent < 38) {
+        percent = 25;
+    } else if (percent < 63) {
+        percent = 50;
+    } else if (percent < 88) {
+        percent = 75;
+    } else {
+        percent = 100;
+    }
+
+    _brightness = percent;
+
+    if (!_isOn) {
+        return;
+    }
+
+#if defined(HELTEC_T096)
+    // T096: aktív LOW PWM háttérvilágítás.
+    const uint16_t brightness_pwm =
+        (static_cast<uint16_t>(percent) * 255U + 50U) / 100U;
+
+    const uint8_t pwm_value =
+        255U - static_cast<uint8_t>(brightness_pwm);
+
+    analogWrite(PIN_TFT_LEDA_CTL, pwm_value);
+#else
+    digitalWrite(
+        PIN_TFT_LEDA_CTL,
+        percent >= 50
+            ? PIN_TFT_LEDA_CTL_ACTIVE
+            : !PIN_TFT_LEDA_CTL_ACTIVE
+    );
+#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -963,10 +985,8 @@ void ST7735Display::print(const char* str) {
         const int16_t x = sprite->getCursorX();
         const int16_t y = sprite->getCursorY();
 
-        // ASCII alapbetű kirajzolása.
         sprite->write(static_cast<uint8_t>(base));
 
-        // Ékezet kirajzolása.
         if (accent != ACCENT_NONE) {
             drawHungarianAccent(x, y, accent);
         }
