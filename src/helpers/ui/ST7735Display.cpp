@@ -427,6 +427,8 @@ ColorVal UIColor::warning_txt = 0xFFE0;     // Figyelmeztetés: sárga
 ColorVal UIColor::popup_bkg = 0xF79E;       // Popup háttér
 ColorVal UIColor::popup_txt = 0x39C7;       // Popup szöveg
 ColorVal UIColor::corp_blue = 0x03EF;       // Kék kiemelés
+ColorVal UIColor::selected_bkg = 0x03FB;  // #007EDF
+ColorVal UIColor::selected_txt = 0xFFFF;  // #FFFFFF
 //ColorVal UIColor::secondary_txt = (18 << 11) | (36 << 5) | 18;  // mid-gray
 
 bool ST7735Display::begin() {
