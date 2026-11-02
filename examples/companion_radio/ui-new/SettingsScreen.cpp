@@ -66,11 +66,6 @@ void SettingsScreen::rebuildPins() {
   for (uint8_t i = 0; i < (uint8_t)HwPin::COUNT; i++) {
     HwPin p = (HwPin)i;
 
-    // A GPS pinek fixek, nem módosíthatók.
-    if (p == HwPin::GpsRx || p == HwPin::GpsTx) {
-      continue;
-    }
-
     if (hw_config.sensorEnabled(HwConfig::sensorOfPin(p))) {
       _vis_pins[_vis_count++] = p;
     }
