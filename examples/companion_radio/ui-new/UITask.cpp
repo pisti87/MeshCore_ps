@@ -1410,6 +1410,14 @@ public:
       // de a jelenlegi DisplayDriver interfészhez nincs itt
       // igazolt fényerőállító metódus.
       case SettingsItem::BRIGHTNESS:
+        snprintf(
+          out,
+          n,
+          "%u%%",
+          (unsigned int)hw_config.brightness()
+        );
+        break;
+
       default:
         break;
     }
@@ -1526,7 +1534,51 @@ public:
         }
         break;
 
-      case SettingsItem::BRIGHTNESS:
+      case SettingsItem::BRIGHTNESS: {
+        static const uint8_t brightness_levels[] = {
+          25,
+          50,
+          75,
+          100
+        };
+
+        static const uint8_t brightness_count =
+          sizeof(brightness_levels) /
+          sizeof(brightness_levels[0]);
+
+        uint8_t current = hw_config.brightness();
+        uint8_t index = 0;
+
+        // Megkeressük az aktuális fényerőszintet.
+        for (uint8_t i = 0; i < brightness_count; i++) {
+          if (brightness_levels[i] == current) {
+            index = i;
+            break;
+          }
+        }
+
+        // Balra: csökkentés.
+        // Jobbra vagy OK: növelés.
+        if (dir < 0) {
+          index = (index + brightness_count - 1) %
+                  brightness_count;
+        } else {
+          index = (index + 1) % brightness_count;
+        }
+
+        uint8_t new_brightness = brightness_levels[index];
+
+        // Beállítás mentése a hardverkonfigurációba.
+        hw_config.setBrightness(new_brightness);
+
+        // Azonnali alkalmazás a kijelzőn.
+        if (_t->_display != NULL) {
+          _t->_display->setBrightness(new_brightness);
+        }
+
+        break;
+      }
+
       case SettingsItem::SENSORS:
       case SettingsItem::PINS:
       case SettingsItem::COUNT:
@@ -1578,6 +1630,11 @@ void UITask::begin(
 #endif
 
   if (_display != NULL) {
+    // A mentett fényerő alkalmazása.
+    // A driver kikapcsolt állapotban is eltárolja az értéket.
+    _display->setBrightness(hw_config.brightness());
+
+    // Bekapcsoláskor a driver alkalmazza a beállított fényerőt.
     _display->turnOn();
   }
 
