@@ -1,15 +1,15 @@
 #include "LGFXDisplay.h"
 
 // Color scheme
-ColorVal UIColor::window_bkg = 0x2104;      // Háttér: #212121
-ColorVal UIColor::title_bkg = 0x39C7;       // Fejléc: #373737
-ColorVal UIColor::title_txt = 0xFFFF;       // Fejléc szöveg: fehér
-ColorVal UIColor::primary_txt = 0xFFFF;     // Fő szöveg: FEHÉR
-ColorVal UIColor::secondary_txt = 0xFFFF;   // Másodlagos/középső szöveg: FEHÉR
-ColorVal UIColor::warning_txt = 0xFFE0;     // Figyelmeztetés: sárga
-ColorVal UIColor::popup_bkg = 0xF79E;       // Popup háttér
-ColorVal UIColor::popup_txt = 0x39C7;       // Popup szöveg
-ColorVal UIColor::corp_blue = 0x03EF;       // Kék kiemelés
+ColorVal UIColor::window_bkg = 0xFFFF;
+ColorVal UIColor::title_bkg = 0x001F;
+ColorVal UIColor::title_txt = 0xFFFF;
+ColorVal UIColor::primary_txt = 0x0000;
+ColorVal UIColor::secondary_txt = (18 << 11) | (36 << 5) | 18;  // mid-gray
+ColorVal UIColor::warning_txt = 0xFD20;
+ColorVal UIColor::popup_bkg =  0x07FF;  // CYAN
+ColorVal UIColor::popup_txt = 0x0000;
+ColorVal UIColor::corp_blue = 0x001A;
 
 //ColorVal UIColor::secondary_txt = (18 << 11) | (36 << 5) | 18;  // mid-gray
 
