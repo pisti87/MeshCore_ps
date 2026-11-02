@@ -9,7 +9,7 @@
 #define HW_MAX_PIN 47          // nRF52840: P0.00..P1.15 -> 0..47
 
 enum class HwSensor : uint8_t { Buzzer, Vibra, Gps, Env, COUNT };
-enum class HwPin    : uint8_t { Buzzer, Vibra, GpsRx, GpsTx, I2cSda, I2cScl, COUNT };
+enum class HwPin    : uint8_t { Buzzer, Vibra, I2cSda, I2cScl, COUNT };
 
 struct HwNote { uint16_t freq; uint16_t ms; };   // freq 0 = szünet
 
