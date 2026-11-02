@@ -88,6 +88,8 @@ public:
 //    );
 const int logoWidth = 128;
 const int logoHeight = 48;
+//#define hellcore_logo_width 128
+//#define hellcore_logo_height 48
 
 display.drawXbm(
   (display.width() - logoWidth) / 2,
