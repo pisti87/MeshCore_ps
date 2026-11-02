@@ -3,16 +3,6 @@
 #include <stdint.h>
 
 // HellCore logo: radio antenna surrounded by flames
-// Size: 128x48px, monochrome XBM
-Claude
-
-
-
-
-
-
-Hellcore logó · H
-// HellCore logo (PNG-ből generálva)
 // Size: 128x48px, monochrome XBM (LSB first)
 
 static const uint8_t hellcore_logo[] = {
