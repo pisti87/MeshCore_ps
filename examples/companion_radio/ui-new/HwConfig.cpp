@@ -230,6 +230,43 @@ bool HwConfig::isReserved(int p) {
 #ifdef PIN_USER_BTN
   if (p == (int)PIN_USER_BTN) return true;
 #endif
+#ifdef PIN_GPS_RX
+  if (p == (int)PIN_GPS_RX) return true;
+#endif
+#ifdef PIN_GPS_TX
+  if (p == (int)PIN_GPS_TX) return true;
+#endif
+#ifdef PIN_GPS_EN
+  if (p == (int)PIN_GPS_EN) return true;
+#endif
+#ifdef PIN_GPS_RESET
+  if (p == (int)PIN_GPS_RESET) return true;
+#endif
+#ifdef PIN_TFT_SCL
+  if (p == (int)PIN_TFT_SCL) return true;
+#endif
+#ifdef PIN_TFT_SDA
+  if (p == (int)PIN_TFT_SDA) return true;
+#endif
+#ifdef PIN_TFT_RST
+  if (p == (int)PIN_TFT_RST) return true;
+#endif
+#ifdef PIN_TFT_CS
+  if (p == (int)PIN_TFT_CS) return true;
+#endif
+#ifdef PIN_TFT_DC
+  if (p == (int)PIN_TFT_DC) return true;
+#endif
+#ifdef PIN_TFT_LEDA_CTL
+  if (p == (int)PIN_TFT_LEDA_CTL) return true;
+#endif
+
+#ifdef PIN_BAT_CTL
+  if (p == (int)PIN_BAT_CTL) return true;
+#endif
+#ifdef PIN_VEXT_EN
+  if (p == (int)PIN_VEXT_EN) return true;
+#endif
 #ifdef PIN_STATUS_LED
   if (p == (int)PIN_STATUS_LED) return true;
 #endif
