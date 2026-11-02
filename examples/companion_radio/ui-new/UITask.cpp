@@ -81,10 +81,10 @@ public:
     const int logoWidth = 128;
     display.drawXbm(
       (display.width() - logoWidth) / 2,
-      3,
-      meshcore_logo,
+      2,
+      hellcore_logo,
       logoWidth,
-      13
+      48
     );
 
     const char* website = "https://meshcore.io";
