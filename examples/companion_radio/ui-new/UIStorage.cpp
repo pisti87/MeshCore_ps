@@ -13,6 +13,9 @@
     // Heltec T114
     #include <InternalFileSystem.h>
 
+
+    using namespace Adafruit_LittleFS_Namespace;
+    
 #elif defined(ESP32)
 
     // Heltec V3
