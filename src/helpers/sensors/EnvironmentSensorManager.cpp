@@ -4,13 +4,13 @@
 
 #if ENV_INCLUDE_DHT11
 
-#ifndef EMV_DHT11_PIN
+#ifndef ENV_DHT11_PIN
 #define ENV_DHT11_PIN 4
 #endif
 
-#include  <DHT.h>
+#include <DHT.h>
 
-statixc DHT dht11(ENV_DHT11_PIN, DHT11);
+static DHT dht11(ENV_DHT11_PIN, DHT11);
 #endif
 
 #if ENV_PIN_SDA && ENV_PIN_SCL
@@ -703,21 +703,34 @@ bool EnvironmentSensorManager::querySensors(uint8_t requester_permissions, Cayen
   }
 
   if (requester_permissions & TELEM_PERM_ENVIRONMENT) {
+    // Existing I2C sensors
     for (int i = 0; i < _active_sensor_count; i++) {
-      _active_sensors[i].query(next_available_channel, _active_sensors[i].sub_channel, telemetry);
+      _active_sensors[i].query(
+          next_available_channel,
+          _active_sensors[i].sub_channel,
+          telemetry
+      );
       next_available_channel++;
     }
+
 #if ENV_INCLUDE_DHT11
-	float temperature = dht11.readTemperature();
-	float humidity = dht11.readHumidity();
-	
-	if (!isnan(temperature) && !isnan(humidity)) {
-		telemetry.addTemperature(next_available_channel, temperature);
-		telemetry.addRelativeHumidity(next_available_channel, humidity);
-		
-		MESH_DEBUG_PRINTLN("DHT11: %.1f C, %.1f %%", temperature, humidity);
-  }
+    // DHT11 on the configured GPIO pin
+    float temperature = dht11.readTemperature();
+    float humidity = dht11.readHumidity();
+
+    if (!isnan(temperature) && !isnan(humidity)) {
+      telemetry.addTemperature(next_available_channel, temperature);
+      telemetry.addRelativeHumidity(next_available_channel, humidity);
+
+      MESH_DEBUG_PRINTLN(
+          "DHT11: %.1f C, %.1f %%",
+          temperature,
+          humidity
+      );
+    }
 #endif
+  }
+
   return true;
 }
 
