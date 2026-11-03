@@ -1,19 +1,21 @@
-
 #include "UIStorage.h"
 
 #include <string.h>
 #include <stdio.h>
 
-// --------------------------------------------------
-// Platformfüggő fájlrendszerek
-// --------------------------------------------------
+// ==================================================
+// PLATFORMFÜGGŐ TÁRHELY KIVÁLASZTÁSA
+// ==================================================
 
 #if defined(NRF52_PLATFORM)
 
+    // Heltec T096
+    // Heltec T114
     #include <InternalFileSystem.h>
 
 #elif defined(ESP32)
 
+    // Heltec V3
     #include <SPIFFS.h>
 
 #else
@@ -22,54 +24,23 @@
 
 #endif
 
-// --------------------------------------------------
-// Belső állapot
-// --------------------------------------------------
 
-static bool storage_ready = false;
-
-// --------------------------------------------------
-// Fájlrendszer inicializálása
-// --------------------------------------------------
-
-bool UIStorage::begin() {
-
-    if (storage_ready) {
-        return true;
-    }
-
-#if defined(NRF52_PLATFORM)
-
-    // Heltec T096 / T114
-    storage_ready = InternalFS.begin();
-
-#elif defined(ESP32)
-
-    // Heltec V3
-    // Automatikus formázás TILOS!
-    storage_ready = SPIFFS.begin(false);
-
-#endif
-
-    return storage_ready;
-}
-
-// --------------------------------------------------
-// Állapot
-// --------------------------------------------------
-
-bool UIStorage::ready() {
-
-    return storage_ready;
-}
-
-// --------------------------------------------------
-// Belső segédfüggvények
-// --------------------------------------------------
+// ==================================================
+// BELSŐ ÁLLAPOT
+// ==================================================
 
 namespace {
 
-    // Fájllétezés.
+    bool storage_ready = false;
+
+    // Ideiglenes fájl maximális elérésiút-hossza.
+    constexpr size_t PATH_BUFFER_SIZE = 128;
+
+
+    // --------------------------------------------------
+    // Fájlrendszer fájllétezés ellenőrzése
+    // --------------------------------------------------
+
     bool fileExists(const char* path) {
 
 #if defined(NRF52_PLATFORM)
@@ -81,9 +52,14 @@ namespace {
         return SPIFFS.exists(path);
 
 #endif
+
     }
 
-    // Fájl megnyitása olvasásra.
+
+    // --------------------------------------------------
+    // Fájl megnyitása olvasásra
+    // --------------------------------------------------
+
     File openRead(const char* path) {
 
 #if defined(NRF52_PLATFORM)
@@ -101,16 +77,22 @@ namespace {
         );
 
 #endif
+
     }
 
-    // Fájl megnyitása írásra.
+
+    // --------------------------------------------------
+    // Fájl megnyitása írásra
+    // --------------------------------------------------
+
     File openWrite(const char* path) {
 
 #if defined(NRF52_PLATFORM)
 
-        // A régi fájlt előbb töröljük,
-        // mert az InternalFS írási módja
-        // nem minden esetben truncálja.
+        // Az InternalFS esetében a meglévő fájlt
+        // előbb törölni kell, hogy ne maradjon
+        // benne korábbi tartalom.
+
         InternalFS.remove(path);
 
         return InternalFS.open(
@@ -126,9 +108,14 @@ namespace {
         );
 
 #endif
+
     }
 
-    // Fájl törlése.
+
+    // --------------------------------------------------
+    // Fájl törlése
+    // --------------------------------------------------
+
     bool removeFile(const char* path) {
 
         if (!fileExists(path)) {
@@ -144,75 +131,59 @@ namespace {
         return SPIFFS.remove(path);
 
 #endif
+
     }
 
-    // Fájl átnevezése.
-    bool renameFile(
-        const char* from,
-        const char* to
-    ) {
 
-#if defined(NRF52_PLATFORM)
+    // --------------------------------------------------
+    // Kiegészítő fájlnév előállítása
+    // --------------------------------------------------
 
-        return InternalFS.rename(
-            from,
-            to
-        );
-
-#elif defined(ESP32)
-
-        return SPIFFS.rename(
-            from,
-            to
-        );
-
-#endif
-    }
-
-    // Kiegészítő fájlnév létrehozása.
-    bool makeSidePath(
+    bool makeTempPath(
         const char* path,
-        const char* suffix,
         char* output,
-        size_t output_size
+        size_t outputSize
     ) {
 
         if (
-            path == NULL ||
-            suffix == NULL ||
-            output == NULL ||
-            output_size == 0
+            path == nullptr ||
+            output == nullptr ||
+            outputSize == 0
         ) {
             return false;
         }
 
-        int n = snprintf(
+        int length = snprintf(
             output,
-            output_size,
-            "%s%s",
-            path,
-            suffix
+            outputSize,
+            "%s.tmp",
+            path
         );
 
-        return n > 0 &&
-               (size_t)n < output_size;
+        return length > 0 &&
+               static_cast<size_t>(length) < outputSize;
+
     }
 
-    // Fájl méretének és tartalmának ellenőrzése.
+
+    // --------------------------------------------------
+    // Fájl tartalmának ellenőrzése
+    // --------------------------------------------------
+
     bool verifyFile(
         const char* path,
         const uint8_t* expected,
-        size_t expected_length
+        size_t expectedLength
     ) {
 
-        File f = openRead(path);
+        File file = openRead(path);
 
-        if (!f) {
+        if (!file) {
             return false;
         }
 
-        if (f.size() != expected_length) {
-            f.close();
+        if (file.size() != expectedLength) {
+            file.close();
             return false;
         }
 
@@ -222,18 +193,20 @@ namespace {
 
         bool valid = true;
 
-        while (offset < expected_length) {
+        while (offset < expectedLength) {
 
             size_t remaining =
-                expected_length - offset;
+                expectedLength - offset;
 
             size_t amount =
                 remaining < sizeof(buffer)
                     ? remaining
                     : sizeof(buffer);
 
-            size_t received =
-                f.read(buffer, amount);
+            size_t received = file.read(
+                buffer,
+                amount
+            );
 
             if (received != amount) {
                 valid = false;
@@ -252,14 +225,20 @@ namespace {
             }
 
             offset += amount;
+
         }
 
-        f.close();
+        file.close();
 
         return valid;
+
     }
 
-    // Fájl beolvasása.
+
+    // --------------------------------------------------
+    // Belső fájlbeolvasás
+    // --------------------------------------------------
+
     bool readFile(
         const char* path,
         uint8_t* buffer,
@@ -269,63 +248,136 @@ namespace {
 
         bytesRead = 0;
 
-        File f = openRead(path);
+        File file = openRead(path);
 
-        if (!f) {
+        if (!file) {
             return false;
         }
 
-        size_t file_size = f.size();
+        size_t fileSize = file.size();
 
-        if (file_size > capacity) {
-            f.close();
+        if (fileSize > capacity) {
+            file.close();
             return false;
         }
 
-        if (file_size == 0) {
-            f.close();
+        if (fileSize == 0) {
+            file.close();
             return true;
         }
 
-        size_t received = f.read(
+        size_t received = file.read(
             buffer,
-            file_size
+            fileSize
         );
 
-        f.close();
+        file.close();
 
-        if (received != file_size) {
+        if (received != fileSize) {
             return false;
         }
 
         bytesRead = received;
 
         return true;
+
     }
 
-} // namespace
+}
 
-// --------------------------------------------------
-// Fájl létezésének ellenőrzése
-// --------------------------------------------------
+
+// ==================================================
+// TÁRHELY INICIALIZÁLÁSA
+// ==================================================
+
+bool UIStorage::begin() {
+
+    if (storage_ready) {
+        return true;
+    }
+
+#if defined(NRF52_PLATFORM)
+
+    // T096 / T114
+    //
+    // A belső flash fájlrendszer használata.
+    // Nem formázunk automatikusan.
+
+    storage_ready = InternalFS.begin();
+
+#elif defined(ESP32)
+
+    // Heltec V3
+    //
+    // SPIFFS fájlrendszer.
+    // Hiba esetén automatikus formázás TILOS.
+
+    storage_ready = SPIFFS.begin(false);
+
+#endif
+
+    return storage_ready;
+
+}
+
+
+// ==================================================
+// TÁRHELY ÁLLAPOTA
+// ==================================================
+
+bool UIStorage::ready() {
+
+    return storage_ready;
+
+}
+
+
+// ==================================================
+// TÁRHELY TÍPUSÁNAK LEKÉRDEZÉSE
+// ==================================================
+
+const char* UIStorage::backendName() {
+
+#if defined(NRF52_PLATFORM)
+
+    return "InternalFS";
+
+#elif defined(ESP32)
+
+    return "SPIFFS";
+
+#else
+
+    return "Unknown";
+
+#endif
+
+}
+
+
+// ==================================================
+// FÁJL LÉTEZÉSÉNEK ELLENŐRZÉSE
+// ==================================================
 
 bool UIStorage::exists(
     const char* path
 ) {
 
     if (
-        path == NULL ||
+        path == nullptr ||
         !begin()
     ) {
         return false;
     }
 
     return fileExists(path);
+
 }
 
-// --------------------------------------------------
-// Fájl beolvasása
-// --------------------------------------------------
+
+// ==================================================
+// FÁJL BEOLVASÁSA
+// ==================================================
 
 bool UIStorage::read(
     const char* path,
@@ -337,14 +389,15 @@ bool UIStorage::read(
     bytesRead = 0;
 
     if (
-        path == NULL ||
-        buffer == NULL ||
+        path == nullptr ||
+        buffer == nullptr ||
         !begin()
     ) {
         return false;
     }
 
-    // Elsődleges fájl.
+    // Elsődleges fájl beolvasása.
+
     if (
         readFile(
             path,
@@ -357,17 +410,15 @@ bool UIStorage::read(
     }
 
     // Ha a fő fájl nem olvasható,
-    // megpróbáljuk a félbemaradt mentés
-    // ideiglenes fájlját.
+    // megpróbáljuk az ideiglenes fájlt.
 
-    char temp_path[96];
+    char tempPath[PATH_BUFFER_SIZE];
 
     if (
-        !makeSidePath(
+        !makeTempPath(
             path,
-            ".tmp",
-            temp_path,
-            sizeof(temp_path)
+            tempPath,
+            sizeof(tempPath)
         )
     ) {
         return false;
@@ -375,7 +426,7 @@ bool UIStorage::read(
 
     if (
         readFile(
-            temp_path,
+            tempPath,
             buffer,
             capacity,
             bytesRead
@@ -384,33 +435,14 @@ bool UIStorage::read(
         return true;
     }
 
-    // Utolsó lehetőség:
-    // korábbi biztonsági másolat.
+    return false;
 
-    char backup_path[96];
-
-    if (
-        !makeSidePath(
-            path,
-            ".bak",
-            backup_path,
-            sizeof(backup_path)
-        )
-    ) {
-        return false;
-    }
-
-    return readFile(
-        backup_path,
-        buffer,
-        capacity,
-        bytesRead
-    );
 }
 
-// --------------------------------------------------
-// Fájl biztonságos mentése
-// --------------------------------------------------
+
+// ==================================================
+// FÁJL MENTÉSE
+// ==================================================
 
 bool UIStorage::write(
     const char* path,
@@ -419,43 +451,34 @@ bool UIStorage::write(
 ) {
 
     if (
-        path == NULL ||
-        (data == NULL && length > 0) ||
+        path == nullptr ||
+        (data == nullptr && length > 0) ||
         !begin()
     ) {
         return false;
     }
 
-    char temp_path[96];
-    char backup_path[96];
+    char tempPath[PATH_BUFFER_SIZE];
 
     if (
-        !makeSidePath(
+        !makeTempPath(
             path,
-            ".tmp",
-            temp_path,
-            sizeof(temp_path)
-        ) ||
-        !makeSidePath(
-            path,
-            ".bak",
-            backup_path,
-            sizeof(backup_path)
+            tempPath,
+            sizeof(tempPath)
         )
     ) {
         return false;
     }
 
-    // Korábbi félbemaradt ideiglenes
-    // fájl eltávolítása.
+    // Korábbi ideiglenes fájl eltávolítása.
 
-    removeFile(temp_path);
+    removeFile(tempPath);
 
     // Új ideiglenes fájl létrehozása.
 
-    File f = openWrite(temp_path);
+    File file = openWrite(tempPath);
 
-    if (!f) {
+    if (!file) {
         return false;
     }
 
@@ -463,128 +486,155 @@ bool UIStorage::write(
 
     if (length > 0) {
 
-        written = f.write(
+        written = file.write(
             data,
             length
         );
+
     }
 
-    f.close();
+    file.close();
 
     if (written != length) {
-        removeFile(temp_path);
+        removeFile(tempPath);
         return false;
     }
 
-    // A tényleges tartalom ellenőrzése.
+    // Az ideiglenes fájl tartalmának ellenőrzése.
 
     if (
         !verifyFile(
-            temp_path,
+            tempPath,
             data,
             length
         )
     ) {
-        removeFile(temp_path);
+        removeFile(tempPath);
         return false;
     }
 
-    // Korábbi biztonsági másolat törlése.
+    // A régi végleges fájl eltávolítása.
 
-    removeFile(backup_path);
-
-    bool had_original = fileExists(path);
-
-    // A jelenlegi fájlt biztonsági
-    // másolatként megtartjuk.
-
-    if (had_original) {
-
-        if (
-            !renameFile(
-                path,
-                backup_path
-            )
-        ) {
-            removeFile(temp_path);
-            return false;
-        }
+    if (!removeFile(path)) {
+        return false;
     }
 
-    // Az új fájl átnevezése.
+    // Az ellenőrzött ideiglenes fájl tartalmának
+    // átmásolása a végleges fájlba.
+
+    File source = openRead(tempPath);
+
+    if (!source) {
+        return false;
+    }
+
+    File destination = openWrite(path);
+
+    if (!destination) {
+        source.close();
+        return false;
+    }
+
+    uint8_t buffer[64];
+
+    bool success = true;
+
+    size_t copied = 0;
+
+    while (copied < length) {
+
+        size_t remaining = length - copied;
+
+        size_t amount =
+            remaining < sizeof(buffer)
+                ? remaining
+                : sizeof(buffer);
+
+        size_t received = source.read(
+            buffer,
+            amount
+        );
+
+        if (received != amount) {
+            success = false;
+            break;
+        }
+
+        size_t output = destination.write(
+            buffer,
+            received
+        );
+
+        if (output != received) {
+            success = false;
+            break;
+        }
+
+        copied += received;
+
+    }
+
+    source.close();
+    destination.close();
+
+    if (!success || copied != length) {
+        removeFile(path);
+        return false;
+    }
+
+    // A végleges fájl visszaellenőrzése.
 
     if (
-        !renameFile(
-            temp_path,
-            path
+        !verifyFile(
+            path,
+            data,
+            length
         )
     ) {
-
-        // Sikertelen csere esetén
-        // megpróbáljuk visszaállítani
-        // a korábbi konfigurációt.
-
-        if (had_original) {
-
-            renameFile(
-                backup_path,
-                path
-            );
-        }
-
+        removeFile(path);
         return false;
     }
 
-    // Sikeres csere után a biztonsági
-    // másolat már nem szükséges.
+    // Sikeres mentés után az ideiglenes fájl törlése.
 
-    if (had_original) {
-        removeFile(backup_path);
-    }
+    removeFile(tempPath);
 
     return true;
+
 }
 
-// --------------------------------------------------
-// Fájl törlése
-// --------------------------------------------------
+
+// ==================================================
+// FÁJL TÖRLÉSE
+// ==================================================
 
 bool UIStorage::remove(
     const char* path
 ) {
 
     if (
-        path == NULL ||
+        path == nullptr ||
         !begin()
     ) {
         return false;
     }
 
-    char temp_path[96];
-    char backup_path[96];
+    char tempPath[PATH_BUFFER_SIZE];
 
     if (
-        !makeSidePath(
+        !makeTempPath(
             path,
-            ".tmp",
-            temp_path,
-            sizeof(temp_path)
-        ) ||
-        !makeSidePath(
-            path,
-            ".bak",
-            backup_path,
-            sizeof(backup_path)
+            tempPath,
+            sizeof(tempPath)
         )
     ) {
         return false;
     }
 
-    bool main_ok = removeFile(path);
-    bool temp_ok = removeFile(temp_path);
-    bool backup_ok = removeFile(backup_path);
+    bool mainOk = removeFile(path);
 
-    return main_ok &&
-           temp_ok &&
-           backup_ok;
+    bool tempOk = removeFile(tempPath);
+
+    return mainOk && tempOk;
+
 }
