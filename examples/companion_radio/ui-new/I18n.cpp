@@ -179,7 +179,20 @@ static const Row ROWS[] = {
     { "Vibra motor",             "Rezgőmotor",                      "Vibrationsmotor" },
     { "Voltage",                 "Feszültség",                      "Spannung" },
 
-    { "Wake on message",         "Ébresztés üzenetre",              "Bei Nachricht aufwecken" }
+    { "Wake on message",         "Ébresztés üzenetre",              "Bei Nachricht aufwecken" },
+
+    { "Apr",                     "ápr",                             "Apr" },
+    { "Aug",                     "aug",                             "Aug" },
+    { "Dec",                     "dec",                             "Dez" },
+    { "Feb",                     "feb",                             "Feb" },
+    { "Jan",                     "jan",                             "Jan" },
+    { "Jul",                     "júl",                             "Jul" },
+    { "Jun",                     "jún",                             "Jun" },
+    { "Mar",                     "márc",                            "Mär" },
+    { "May",                     "máj",                             "Mai" },
+    { "Nov",                     "nov",                             "Nov" },
+    { "Oct",                     "okt",                             "Okt" },
+    { "Sep",                     "szept",                           "Sep" }
 };
 
 
