@@ -466,27 +466,106 @@ public:
 #endif
 
 #ifdef UI_SHOW_CLOCK
-      display.setTextSize(3);
+
+      // ----------------------------------------------
+      // DIGITÁLIS ÓRA – 24 órás formátum
+      // ----------------------------------------------
 
       uint32_t now = _rtc->getCurrentTime();
       now += (int32_t)_node_prefs->tz_offset * 3600;
 
       DateTime dt(now);
 
-      sprintf(tmp, "%02d:%02d", dt.hour(), dt.minute());
-      display.drawTextCentered(display.width() / 2, 60, tmp);
-
+      // Az óra betűmérete megegyezik a Settings menüével.
       display.setTextSize(1);
+      display.setColor(UIColor::primary_txt);
 
-      sprintf(
+      // HH:MM:SS – 24 órás megjelenítés.
+      snprintf(
         tmp,
-        "%02d/%02d/%d",
-        dt.day(),
-        dt.month(),
-        dt.year()
+        sizeof(tmp),
+        "%02d:%02d:%02d",
+        dt.hour(),
+        dt.minute(),
+        dt.second()
       );
 
-      display.drawTextCentered(display.width() / 2, 80, tmp);
+      display.drawTextCentered(
+        display.width() / 2,
+        54,
+        tmp
+      );
+
+      // ----------------------------------------------
+      // DÁTUM – nyelvfüggő formátum
+      // ----------------------------------------------
+
+      static const char* const MONTHS[] = {
+        TR("Jan"),
+        TR("Feb"),
+        TR("Mar"),
+        TR("Apr"),
+        TR("May"),
+        TR("Jun"),
+        TR("Jul"),
+        TR("Aug"),
+        TR("Sep"),
+        TR("Oct"),
+        TR("Nov"),
+        TR("Dec")
+      };
+
+      const char* month = MONTHS[dt.month() - 1];
+
+      switch (I18n::lang()) {
+
+        case Lang::HU:
+          // Magyar: 2026. nov. 3.
+          snprintf(
+            tmp,
+            sizeof(tmp),
+            "%04d. %s. %d.",
+            dt.year(),
+            month,
+            dt.day()
+          );
+          break;
+
+        case Lang::DE:
+          // Német: 03. Nov. 2026
+          snprintf(
+            tmp,
+            sizeof(tmp),
+            "%02d. %s %04d",
+            dt.day(),
+            month,
+            dt.year()
+          );
+          break;
+
+        case Lang::EN:
+        default:
+          // Angol: 03 Nov 2026
+          snprintf(
+            tmp,
+            sizeof(tmp),
+            "%02d %s %04d",
+            dt.day(),
+            month,
+            dt.year()
+          );
+          break;
+      }
+
+      display.setTextSize(1);
+      display.setColor(UIColor::secondary_txt);
+
+      display.drawTextCentered(
+        display.width() / 2,
+        68,
+        tmp
+      );
+
 #endif
 
 #ifdef ENABLE_WIFI_INTERFACE
