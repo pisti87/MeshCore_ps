@@ -2,6 +2,17 @@
 
 #include <Wire.h>
 
+#if ENV_INCLUDE_DHT11
+
+#ifndef EMV_DHT11_PIN
+#define ENV_DHT11_PIN 4
+#endif
+
+#include  <DHT.h>
+
+statixc DHT dht11(ENV_DHT11_PIN, DHT11);
+#endif
+
 #if ENV_PIN_SDA && ENV_PIN_SCL
 #define TELEM_WIRE &Wire1  // Use Wire1 as the I2C bus for Environment Sensors
 #else
@@ -671,7 +682,10 @@ bool EnvironmentSensorManager::begin() {
       _active_sensors[_active_sensor_count++] = { def.query, sub };
     }
   }
-
+#if ENV_INCLUDE_DHT11
+	dht11.begin();
+	MESH_DEBUG_PRINTLN("DHT11 initialized on GPIO %d", ENV_DHT11_PIN);
+	#endif
   return true;
 }
 
@@ -693,8 +707,17 @@ bool EnvironmentSensorManager::querySensors(uint8_t requester_permissions, Cayen
       _active_sensors[i].query(next_available_channel, _active_sensors[i].sub_channel, telemetry);
       next_available_channel++;
     }
+#if ENV_INCLUDE_DHT11
+	float temperature = dht11.readTemperature();
+	float humidity = dht11.readHumidity();
+	
+	if (!isnan(temperature) && !isnan(humidity)) {
+		telemetry.addTemperature(next_available_channel, temperature);
+		telemetry.addRelativeHumidity(next_available_channel, humidity);
+		
+		MESH_DEBUG_PRINTLN("DHT11: %.1f C, %.1f %%", temperature, humidity);
   }
-
+#endif
   return true;
 }
 
