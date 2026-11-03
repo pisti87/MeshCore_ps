@@ -2,6 +2,8 @@
 #include "HwConfig.h"
 #include <string.h>
 #include <stdio.h>
+// heltec v3
+#include <RadioLib.h>
 
 #if defined(NRF52_PLATFORM) || defined(ARDUINO_ARCH_NRF52) || defined(NRF52840_XXAA) || defined(NRF52832_XXAA)
   #include <InternalFileSystem.h>
