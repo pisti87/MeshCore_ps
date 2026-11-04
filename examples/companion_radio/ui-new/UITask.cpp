@@ -57,20 +57,19 @@ static float readSpectrumRSSI(void* context) {
 class SplashScreen : public UIScreen {
   UITask* _task;
   unsigned long dismiss_after;
-  char _version_info[12];
+  char _version_info[48];
+
 
 public:
   explicit SplashScreen(UITask* task) : _task(task) {
-    const char* ver = FIRMWARE_VERSION;
-    const char* dash = strchr(ver, '-');
 
-    int len = dash ? (int)(dash - ver) : (int)strlen(ver);
-    if (len >= (int)sizeof(_version_info)) {
-      len = sizeof(_version_info) - 1;
-    }
-
-    memcpy(_version_info, ver, len);
-    _version_info[len] = 0;
+    snprintf(
+      _version_info,
+      sizeof(_version_info),
+      "HC %s  MC %s",
+      HELLCORE_VERSION,
+      FIRMWARE_VERSION
+    );
 
     dismiss_after = millis() + BOOT_SCREEN_MILLIS;
   }
