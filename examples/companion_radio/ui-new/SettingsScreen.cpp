@@ -8,6 +8,10 @@ static const int LIST_TOP = 14;
 
 static const char* mainLabel(SettingsItem i) {
   switch (i) {
+    #if defined(HELTEC_T096)
+    case SettingsItem::TX_POWER:
+      return TR("TX power");
+#endif
     case SettingsItem::LANGUAGE: return TR("Language");
     case SettingsItem::SCREEN_TIMEOUT: return TR("Screen timeout");
     case SettingsItem::BRIGHTNESS:     return TR("Brightness");
