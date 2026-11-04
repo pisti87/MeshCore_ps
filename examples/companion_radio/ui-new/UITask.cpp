@@ -169,6 +169,9 @@ display.drawXbm(
 
 class HomeScreen : public UIScreen {
   enum HomePage {
+#if defined(UI_SHOW_CLOCK) || defined(HELTEC_T096)
+CLOCK,
+#endif
     FIRST,
     RECENT,
     SPECTRUM,
@@ -1554,7 +1557,7 @@ public:
 
         if (dir < 0 && current > 0) {
           next--;
-        } else if (dir > 0 && current < 16) {
+        } else if (dir >= 0 && current < 16) {
           next++;
         }
 
