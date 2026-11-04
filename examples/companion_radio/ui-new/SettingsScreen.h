@@ -22,20 +22,26 @@ enum class SettingsItem : uint8_t {
   TX_POWER,         // T096: 0–16 dBm
 #endif
 
-
-  SCREEN_TIMEOUT,   // 5s ... 5min
-  BRIGHTNESS,       // Kijelző fényereje
+  BLUETOOTH,
   KEEP_USB,         // képernyő bekapcsolva marad USB táplálásnál
   MSG_WAKE,         // új üzenet felébreszti a képernyőt
-  BLUETOOTH,
+
+  BRIGHTNESS,       // Kijelző fényereje
+  SCREEN_TIMEOUT,   // 5s ... 5min
+
   GPS,
+
+  SENSORS,          // almenü: mely szenzorokat használjuk
   BUZZER,           // hangjelzés be/ki
   VIBRA,            // rezgés be/ki
+
   FLOOD_ADVERT,     // akció: advert küldése
-  SENSORS,          // almenü: mely szenzorokat használjuk
+ 
   PINS,             // almenü: a kiválasztott szenzorok pinjei
+
   REBOOT,
   POWER_OFF,
+
   COUNT
 };
 
