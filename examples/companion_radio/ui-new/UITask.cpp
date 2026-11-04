@@ -1552,24 +1552,46 @@ public:
     switch (item) {
 #if defined(HELTEC_T096)
       case SettingsItem::TX_POWER: {
+        // T096 – TX teljesítményszintek.
+        // 2 dB-es lépések, a maximális érték megtartásával.
+        static const int8_t tx_power_levels[] = {
+          9,
+          11,
+          13,
+          15,
+          16
+        };
+
+        static const uint8_t tx_power_count =
+          sizeof(tx_power_levels) /
+          sizeof(tx_power_levels[0]);
+
         int8_t current = _t->_node_prefs->tx_power_dbm;
-        int8_t next = current;
+        uint8_t index = 0;
 
-        if (dir < 0 && current > 0) {
-          next--;
-        } else if (dir >= 0 && current < 16) {
-          next++;
+        // Megkeressük az aktuális teljesítményszintet.
+        for (uint8_t i = 0; i < tx_power_count; i++) {
+          if (tx_power_levels[i] == current) {
+            index = i;
+            break;
+          }
         }
 
-        if (next != current) {
-          _t->_node_prefs->tx_power_dbm = next;
+        // Egygombos kezelés:
+        // mindig a következő szintre lépünk.
+        // A maximum után visszaugrunk a minimumra.
+        index = (index + 1) % tx_power_count;
 
-          // A rádió tényleges TX teljesítményének módosítása.
-          radio_driver.setTxPower(next);
+        int8_t next = tx_power_levels[index];
 
-          // Beállítás mentése.
-          the_mesh.savePrefs();
-        }
+        // Új teljesítmény mentése.
+        _t->_node_prefs->tx_power_dbm = next;
+
+        // Azonnali alkalmazás a rádión.
+        radio_driver.setTxPower(next);
+
+        // Beállítás tartós mentése.
+        the_mesh.savePrefs();
 
         break;
       }
