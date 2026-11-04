@@ -13,6 +13,13 @@
 #ifndef FIRMWARE_VERSION
 #define FIRMWARE_VERSION "v1.18.0"
 #endif
+#ifndef HELLCORE_VERSION
+#define HELLCORE_VERSION "v1.0.0"
+#endif
+
+#ifndef FIRMWARE_BUILD_DATE
+#define FIRMWARE_BUILD_DATE "15 Oct 2026"
+#endif
 
 #if defined(NRF52_PLATFORM) || defined(STM32_PLATFORM)
 #include <InternalFileSystem.h>
