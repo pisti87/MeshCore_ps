@@ -17,6 +17,12 @@
 
 enum class SettingsItem : uint8_t {
   LANGUAGE,         // English / Magyar / Deutsch
+
+#if defined(HELTEC_T096)
+  TX_POWER,         // T096: 0–16 dBm
+#endif
+
+
   SCREEN_TIMEOUT,   // 5s ... 5min
   BRIGHTNESS,       // Kijelző fényereje
   KEEP_USB,         // képernyő bekapcsolva marad USB táplálásnál
