@@ -1,0 +1,199 @@
+name: Heltec Companion Release
+
+# Lefordítja a Heltec V3 / T114 / T096 companion firmware-eket, majd
+# GitHub Release-t készít belőlük (a repo "Releases" oldalán jelenik meg).
+#
+# Indítás:
+#   1) Kézzel: Actions -> "Heltec Companion Release" -> Run workflow
+#      (verzió megadása, pl. v1.2.0; a tag-et a workflow hozza létre).
+#   2) Tag push-sal:  git tag heltec-v1.2.0 && git push origin heltec-v1.2.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Verzió (pl. v1.2.0). A release tag neve: heltec-<verzió>'
+        required: true
+        type: string
+      prerelease:
+        description: 'Előzetes (pre-release) kiadás'
+        required: false
+        default: false
+        type: boolean
+      draft:
+        description: 'Piszkozat (draft) – nem publikus, amíg kézzel ki nem adod'
+        required: false
+        default: false
+        type: boolean
+      disable_debug:
+        description: 'Debug naplózás kikapcsolása (ajánlott kiadáshoz)'
+        required: false
+        default: true
+        type: boolean
+  push:
+    tags:
+      - 'heltec-v*'
+
+# A Release és a tag létrehozásához írási jog kell.
+permissions:
+  contents: write
+
+concurrency:
+  group: heltec-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Verzió meghatározása
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - name: Verzió és tag
+        id: v
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == refs/tags/heltec-* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#heltec-}"
+          else
+            VERSION="${INPUT_VERSION}"
+            VERSION="${VERSION#heltec-}"
+            TAG="heltec-${VERSION}"
+          fi
+
+          # csak biztonságos karakterek (a verzió fájlnevekbe és build jelzőkbe kerül)
+          if [[ ! "${VERSION}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "Érvénytelen verzió: '${VERSION}' (csak betű, szám, '.', '_' és '-' engedett)"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Verzió: ${VERSION}  Tag: ${TAG}"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - Heltec_v3_companion_radio_ble
+          - Heltec_v3_companion_radio_usb
+          - Heltec_v3_companion_radio_wifi
+          - Heltec_t114_companion_radio_ble
+          - Heltec_t114_companion_radio_usb
+          - Heltec_t096_companion_radio_ble
+          - Heltec_t096_companion_radio_usb
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: PlatformIO gyorsítótár
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini', 'variants/**/platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-pio-
+
+      - name: PlatformIO telepítése
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Firmware fordítása
+        shell: bash
+        env:
+          FIRMWARE_VERSION: ${{ needs.prepare.outputs.version }}
+          DISABLE_DEBUG: ${{ github.event.inputs.disable_debug != 'false' && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          # build.sh: fordítás + .bin/.uf2/.zip előállítása az out/ mappába
+          /usr/bin/env bash build.sh build-firmware "${{ matrix.target }}"
+          echo "--- out/ tartalma ---"
+          ls -la out/
+          if [ -z "$(ls -A out)" ]; then
+            echo "Nem keletkezett kimeneti fájl: ${{ matrix.target }}"
+            exit 1
+          fi
+
+      - name: Artifact feltöltése
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: GitHub Release készítése
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Artifactok letöltése
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Ellenőrző összegek
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          ls -la
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Release leírás
+        shell: bash
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          cat > RELEASE_NOTES.md <<NOTES
+          # Heltec Companion ${VERSION}
+
+          Támogatott eszközök: **Heltec V3**, **Heltec T114**, **Heltec T096**.
+
+          ## Melyik fájlt töltsd le?
+          | Eszköz | Első telepítés | Frissítés |
+          |---|---|---|
+          | Heltec V3 (ESP32-S3) | \`*-merged.bin\` | \`*.bin\` (OTA / esptool) |
+          | Heltec T114 / T096 (nRF52) | \`*.uf2\` (dupla reset után húzd a meghajtóra) | \`*.zip\` (DFU) |
+
+          Az \`_ble\` / \`_usb\` / \`_wifi\` a kapcsolat típusát jelöli.
+          Ellenőrző összegek: \`SHA256SUMS.txt\`.
+          NOTES
+
+      - name: Release létrehozása
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Heltec Companion ${{ needs.prepare.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          fail_on_unmatched_files: true
+          files: dist/*
