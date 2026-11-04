@@ -476,7 +476,7 @@ public:
       DateTime dt(now);
 
       // Az óra betűmérete megegyezik a Settings menüével.
-      display.setTextSize(1);
+      display.setTextSize(2);
       display.setColor(UIColor::primary_txt);
 
       // HH:MM:SS – 24 órás megjelenítés.
