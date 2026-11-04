@@ -39,6 +39,37 @@
   #define UI_PRESS_TEXT(action) TR(action " long press")
 #endif
 
+/////////////////////////////////////
+// Hardverfüggő színdefiníciók
+
+#if defined(HELTEC_T096)
+
+  // T096 – ST7735
+  // A színek definíciója az ST7735Display.cpp fájlban található.
+
+#elif defined(HELTEC_LORA_V3)
+
+  // Heltec V3 – SSD1306
+  ColorVal UIColor::selected_bkg = 0xFFFF;
+  ColorVal UIColor::selected_txt = 0x0000;
+
+#elif defined(HELTEC_T114)
+
+  // T114 – ST7789 vagy NullDisplayDriver
+  ColorVal UIColor::selected_bkg = 0xFFFF;
+  ColorVal UIColor::selected_txt = 0x0000;
+
+  #if defined(HELTEC_T114_WITH_DISPLAY)
+    // ST7789 kijelző
+  #else
+    // NullDisplayDriver
+  #endif
+
+#endif
+
+////////////////////////////////////////////////////////
+
+
 #include "icons.h"
 
 // --------------------------------------------------
