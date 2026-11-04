@@ -495,7 +495,8 @@ public:
       display.drawTextCentered(display.width() / 2, 22, tmp);
 #endif
 
-#ifdef UI_SHOW_CLOCK
+//#ifdef UI_SHOW_CLOCK
+#if defined(UI_SHOW_CLOCK) || defined(HELTEC_T096)
 
       // ----------------------------------------------
       // DIGITÁLIS ÓRA – 24 órás formátum
@@ -616,10 +617,11 @@ public:
         display.setColor(UIColor::warning_txt);
         display.setTextSize(1);
 
-#ifdef UI_SHOW_CLOCK
+//#ifdef UI_SHOW_CLOCK
+#if defined(UI_SHOW_CLOCK) || defined(HELTEC_T096)
         display.drawTextCentered(
           display.width() / 2,
-          110,
+          76,
           TR("< Connected >")
         );
 #else
