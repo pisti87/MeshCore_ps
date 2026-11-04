@@ -1454,6 +1454,17 @@ public:
     out[0] = 0;
 
     switch (item) {
+#if defined(HELTEC_T096)
+      case SettingsItem::TX_POWER:
+        snprintf(
+          out,
+          n,
+          "%d dBm",
+          (int)_t->_node_prefs->tx_power_dbm
+        );
+        break;
+#endif
+
       case SettingsItem::LANGUAGE:
         snprintf(
           out,
@@ -1536,6 +1547,31 @@ public:
 
   void change(SettingsItem item, int8_t dir) override {
     switch (item) {
+#if defined(HELTEC_T096)
+      case SettingsItem::TX_POWER: {
+        int8_t current = _t->_node_prefs->tx_power_dbm;
+        int8_t next = current;
+
+        if (dir < 0 && current > 0) {
+          next--;
+        } else if (dir > 0 && current < 16) {
+          next++;
+        }
+
+        if (next != current) {
+          _t->_node_prefs->tx_power_dbm = next;
+
+          // A rádió tényleges TX teljesítményének módosítása.
+          radio_driver.setTxPower(next);
+
+          // Beállítás mentése.
+          the_mesh.savePrefs();
+        }
+
+        break;
+      }
+#endif
+
       case SettingsItem::LANGUAGE: {
         int index = (int)I18n::lang();
 
