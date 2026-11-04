@@ -167,6 +167,7 @@ static const Row ROWS[] = {
     { "Time zone",               "Időzóna",                         "Zeitzone" },
     { "toggle: long press",      "váltás: hosszú nyomás",           "umschalten: lang drücken" },
     { "toggle: press Enter",     "váltás: Enter",                   "umschalten: Enter" },
+    { "TX power",                "TX teljesítmény",                 "TX-Leistung" },
 
     { "Unavailable pin",         "Nem használható láb",             "Nicht verfügbarer Pin" },
     { "Units",                   "Mértékegységek",                  "Einheiten" },
