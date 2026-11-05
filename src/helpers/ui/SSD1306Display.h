@@ -19,21 +19,31 @@ class SSD1306Display : public DisplayDriver {
   Adafruit_SSD1306 display;
   bool _isOn;
   uint8_t _color;
+  uint8_t _text_size;   // aktuális betűméret (az ékezetek rajzolásához)
+  uint8_t _brightness;
   RefCountedDigitalPin* _peripher_power;
+
+  void applyContrast();
+  void drawAccent(int16_t x, int16_t y, uint8_t accent, bool upper);
 
   bool i2c_probe(TwoWire& wire, uint8_t addr);
 public:
   SSD1306Display(RefCountedDigitalPin* peripher_power=NULL) : DisplayDriver(128, 64), 
       display(128, 64, &Wire, PIN_OLED_RESET),
+      _brightness(100),
       _peripher_power(peripher_power)
   {
     _isOn = false; 
+    _text_size = 1;
+    _color = 1;
   }
   bool begin();
 
   bool isOn() override { return _isOn; }
   void turnOn() override;
   void turnOff() override;
+  void setBrightness(uint8_t percent) override;
+  uint8_t getBrightness() const override { return _brightness; }
   void clear() override;
   void startFrame(ColorVal bkg = UIColor::window_bkg) override;
   void setTextSize(int sz) override;
@@ -44,5 +54,8 @@ public:
   void drawRect(int x, int y, int w, int h) override;
   void drawXbm(int x, int y, const uint8_t* bits, int w, int h) override;
   uint16_t getTextWidth(const char* str) override;
+  // UTF-8 -> megjeleníthető karakterek: a magyar (és német) ékezetes betűk
+  // megmaradnak, minden más nem támogatott karakter blokk (CP437 0xDB) lesz.
+  void translateUTF8ToBlocks(char* dest, const char* src, size_t dest_size) override;
   void endFrame() override;
 };
