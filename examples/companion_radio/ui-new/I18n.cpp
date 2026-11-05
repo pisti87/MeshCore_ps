@@ -70,6 +70,9 @@ static const Row ROWS[] = {
     { "Current",                 "Áramerősség",                     "Stromstärke" },
 
     { "Default",                 "Alapértelmezett",                 "Standard" },
+    { "DHT11",                   "DHT11",                           "DHT11" },
+    { "DHT11 pin",               "DHT11 lába",                      "DHT11-Pin" },
+    { "Disabled",                "Letiltva",                        "Deaktiviert" },
     { "Disabled",                "Letiltva",                        "Deaktiviert" },
     { "Disconnected",            "Nincs kapcsolat",                 "Getrennt" },
     { "Discover",                "Felderítés",                      "Erkennung" },
@@ -447,6 +450,146 @@ static bool specsMatch(
 
 }
 
+
+// ==================================================
+// ÉKEZETEK ASCII-RA EGYSZERŰSÍTÉSE
+//
+// A Heltec T096 (ST7735) és a Heltec V3 (SSD1306) driverében van magyar ékezetrajzolás.
+// Az egyszínű kijelzők (pl. Heltec T114) betűkészlete
+// nem tartalmazza az ő/ű és sok más ékezetes karaktert, ezért ott
+// az UTF-8 szöveg "kérdőjeles / szemetes" lenne. Ezeken az eszközökön
+// a fordítás ékezet nélküli (ASCII) alakban jelenik meg.
+//
+// Kikapcsolható: -D I18N_KEEP_ACCENTS
+// ==================================================
+
+// A Heltec V3 (SSD1306) driverében is van magyar ékezetrajzolás, ezért ott sem egyszerűsítünk.
+#if !defined(HELTEC_T096) && !defined(HELTEC_LORA_V3) && !defined(I18N_KEEP_ACCENTS)
+  #define I18N_ASCII_FOLD 1
+#endif
+
+#ifdef I18N_ASCII_FOLD
+
+static const int FOLD_BUFFERS = 6;
+static const int FOLD_BUF_SIZE = 96;
+
+static bool hasNonAscii(const char* s) {
+    for (; *s; ++s) {
+        if ((unsigned char)*s >= 0x80) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Egy kódpont ASCII megfelelője; visszaadja a kiírt karakterek számát.
+static int foldCodepoint(uint32_t cp, char out[3]) {
+    const bool de = (g_lang == Lang::DE);
+
+    switch (cp) {
+        case 0xE1: case 0xE0: case 0xE2: out[0] = 'a'; return 1;
+        case 0xC1: case 0xC0: case 0xC2: out[0] = 'A'; return 1;
+        case 0xE9: case 0xE8: case 0xEA: out[0] = 'e'; return 1;
+        case 0xC9: case 0xC8: case 0xCA: out[0] = 'E'; return 1;
+        case 0xED: case 0xEC: case 0xEE: out[0] = 'i'; return 1;
+        case 0xCD: case 0xCC: case 0xCE: out[0] = 'I'; return 1;
+        case 0xF3: case 0xF2: case 0xF4: case 0x151:
+            out[0] = 'o'; return 1;
+        case 0xD3: case 0xD2: case 0xD4: case 0x150:
+            out[0] = 'O'; return 1;
+        case 0xFA: case 0xF9: case 0xFB: case 0x171:
+            out[0] = 'u'; return 1;
+        case 0xDA: case 0xD9: case 0xDB: case 0x170:
+            out[0] = 'U'; return 1;
+        case 0xE4: out[0] = 'a'; if (de) { out[1] = 'e'; return 2; } return 1;
+        case 0xC4: out[0] = 'A'; if (de) { out[1] = 'e'; return 2; } return 1;
+        case 0xF6: out[0] = 'o'; if (de) { out[1] = 'e'; return 2; } return 1;
+        case 0xD6: out[0] = 'O'; if (de) { out[1] = 'e'; return 2; } return 1;
+        case 0xFC: out[0] = 'u'; if (de) { out[1] = 'e'; return 2; } return 1;
+        case 0xDC: out[0] = 'U'; if (de) { out[1] = 'e'; return 2; } return 1;
+        case 0xDF: out[0] = 's'; out[1] = 's'; return 2;
+        default:   out[0] = '?'; return 1;
+    }
+}
+
+static const char* foldAscii(const char* text) {
+
+    if (!text || !hasNonAscii(text)) {
+        return text;
+    }
+
+    static char buffers[FOLD_BUFFERS][FOLD_BUF_SIZE];
+    static int next = 0;
+
+    char* out = buffers[next];
+    next = (next + 1) % FOLD_BUFFERS;
+
+    size_t o = 0;
+
+    for (size_t i = 0; text[i] && o < FOLD_BUF_SIZE - 3; ) {
+
+        unsigned char c = (unsigned char)text[i];
+
+        if (c < 0x80) {
+            out[o++] = (char)c;
+            ++i;
+            continue;
+        }
+
+        uint32_t cp = 0;
+        size_t len = 1;
+
+        if ((c & 0xE0) == 0xC0) {
+            len = 2;
+            cp = c & 0x1F;
+        } else if ((c & 0xF0) == 0xE0) {
+            len = 3;
+            cp = c & 0x0F;
+        } else if ((c & 0xF8) == 0xF0) {
+            len = 4;
+            cp = c & 0x07;
+        }
+
+        bool valid = true;
+
+        for (size_t k = 1; k < len; ++k) {
+            unsigned char cc = (unsigned char)text[i + k];
+
+            if ((cc & 0xC0) != 0x80) {
+                valid = false;
+                len = k;
+                break;
+            }
+
+            cp = (cp << 6) | (cc & 0x3F);
+        }
+
+        char tmp[3] = {0, 0, 0};
+        int n = valid ? foldCodepoint(cp, tmp) : 1;
+
+        if (!valid) {
+            tmp[0] = '?';
+        }
+
+        for (int k = 0; k < n; ++k) {
+            out[o++] = tmp[k];
+        }
+
+        i += len;
+    }
+
+    out[o] = '\0';
+
+    return out;
+}
+
+#else
+
+static const char* foldAscii(const char* text) {
+    return text;
+}
+
+#endif
 
 // ==================================================
 // FORDÍTÁS KERESÉSE
