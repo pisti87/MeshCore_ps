@@ -66,6 +66,24 @@
   #endif
 
 #endif
+// --------------------------------------------------
+// Platformfüggő főképernyő-oldalak
+//   UI_CLOCK_PAGE      – külön Óra oldal (digitális óra + dátum)
+//   UI_SENSORDATA_PAGE – "Szenzorok" oldal, csak ha van aktív érzékelő
+// Más eszközre bővítés: #elif defined(HELTEC_T096) ... és ugyanezek a define-ok.
+// --------------------------------------------------
+
+#if defined(HELTEC_LORA_V3)
+  #define UI_CLOCK_PAGE 1
+  #define UI_SENSORDATA_PAGE 1
+#endif
+
+#ifndef UI_CLOCK_PAGE
+  #define UI_CLOCK_PAGE 0
+#endif
+#ifndef UI_SENSORDATA_PAGE
+  #define UI_SENSORDATA_PAGE 0
+#endif
 
 ////////////////////////////////////////////////////////
 
